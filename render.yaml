@@ -16,7 +16,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: https://pedro88-hub.github.io,https://tuao.dev.br,https://bet.tuao.dev.br,http://localhost:5173,http://localhost:8080
+        value: https://bet.tuao.dev.br,https://tuao.dev.br,https://pedro88-hub.github.io,http://localhost:5173,http://localhost:8080
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL

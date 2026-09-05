@@ -24,7 +24,7 @@ const server = http.createServer(app);
 
 const frontendOrigins = (
   process.env.FRONTEND_URL ||
-  'https://pedro88-hub.github.io,http://localhost:5173,http://localhost:8080'
+  'https://bet.tuao.dev.br,https://tuao.dev.br,https://pedro88-hub.github.io,http://localhost:5173,http://localhost:8080'
 )
   .split(',')
   .map((s) => s.trim())
