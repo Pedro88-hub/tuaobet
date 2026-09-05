@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  balance   Float    @default(0.00)
+  xp        Int      @default(0) // Sistema de Níveis
+  role      UserRole @default(USER)
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  
+  bets             Bet[]
+  transactions     Transaction[]
+  adminAuditLogs   AdminAuditLog[] @relation("AdminAuditActor")
+
+  @@index([status])
+}
+
+model AdminAuditLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  admin        User     @relation("AdminAuditActor", fields: [adminId], references: [id], onDelete: Cascade)
+  action       String
+  targetUserId String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([adminId])
+}
+
+model SiteBanner {
+  id        String   @id @default(uuid())
+  key       String   @unique // ex. hero-home
+  imageUrl  String
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+enum AnnouncementDisplayMode {
+  BAR // barra no topo (comportamento clássico)
+  MODAL // modal ao centro
+  TOAST // canto inferior direito, animação
+}
+
+model GlobalAnnouncement {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  active    Boolean  @default(true)
+  displayMode AnnouncementDisplayMode @default(BAR)
+  imageUrl    String?
+  bgColor     String?
+  titleColor  String?
+  messageColor String?
+  accentColor String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SportFixture {
+  id                   String   @id @default(uuid())
+  externalId           Int      @unique
+  // Dia do filtro ?date= da API (YYYY-MM-DD), alinhado ao conjunto sincronizado.
+  queryDate            String
+  utcDate              DateTime
+  status               String
+  homeTeamName         String
+  awayTeamName         String
+  homeTeamExternalId   Int?
+  awayTeamExternalId   Int?
+  // URL do emblema (football-data.org); opcional — fallback na API via id.
+  homeTeamCrestUrl     String?
+  awayTeamCrestUrl     String?
+  competitionCode      String?
+  competitionName      String?
+  // Brasão da competição (URL football-data / CDN por código).
+  competitionEmblemUrl String?
+  homeScore            Int?
+  awayScore            Int?
+  seasonYear           Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  bets Bet[]
+
+  @@index([utcDate])
+  @@index([queryDate])
+}
+
+model Bet {
+  id        String   @id @default(uuid())
+  game      String   // "crash" | "double" | "sport" | ...
+  amount    Float
+  multiplier Float?  // Odds decimais (sport) ou multiplicador do jogo
+  payout    Float?   // Valor total retornado (0 se perdeu)
+  result    String   // "pending" | "win" | "loss"
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sportFixtureId String?
+  sportFixture   SportFixture? @relation(fields: [sportFixtureId], references: [id])
+  sportMarket    String?       // ex. "1X2"
+  sportSelection String?       // HOME | DRAW | AWAY
+  
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  type        String   // "deposit", "withdraw", "bet", "win"
+  amount      Float
+  description String?
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+}

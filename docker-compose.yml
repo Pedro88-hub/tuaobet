@@ -1,0 +1,80 @@
+# TuaoBet — ambiente local com Docker
+# Uso: docker compose up --build
+#
+# Desenvolvimento (hot reload, sem rebuild a cada mudança):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up db backend -d
+#   cd tuaobet-frontend && VITE_API_URL=http://localhost:3001 npm run dev
+#   → http://localhost:5173
+# Ou só a base de dados no Docker e `npm run dev` em backend + frontend (ver comentário em docker-compose.dev.yml).
+# Se o build do frontend falhar com "parent snapshot ... does not exist" (Docker Desktop Windows),
+# usa: .\docker-up.ps1   ou   PowerShell: $env:DOCKER_BUILDKIT="0"; docker compose up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tuaobet-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tuaobet
+      POSTGRES_PASSWORD: tuaobet_secret
+      POSTGRES_DB: tuaobet
+    ports:
+      # Porta 5432 no teu PC — para o DBeaver ligar aqui
+      - "5432:5432"
+    volumes:
+      - tuaobet_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tuaobet -d tuaobet"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./tuaobet-backend
+      dockerfile: Dockerfile
+    container_name: tuaobet-backend
+    restart: unless-stopped
+    ports:
+      # 3001 no PC evita conflito com `npm run dev` na 3000
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://tuaobet:tuaobet_secret@db:5432/tuaobet?schema=public
+      JWT_SECRET: ${JWT_SECRET:-muda_este_segredo_em_producao_minimo_32_chars}
+      # Emails (minúsculos) promovidos a ADMIN ao arrancar — separados por vírgula
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Várias origens separadas por vírgula (site Docker :8080 + Vite dev :5173)
+      FRONTEND_URL: http://localhost:8080,http://localhost:5173
+      NODE_ENV: production
+      # Chave gratuita: https://dashboard.api-football.com/ (substitui football-data.org)
+      APISPORTS_FOOTBALL_KEY: ${APISPORTS_FOOTBALL_KEY:-}
+      # Fuso para datas/horários dos jogos na API e queryDate na BD (Brasil)
+      APISPORTS_TIMEZONE: ${APISPORTS_TIMEZONE:-America/Sao_Paulo}
+      # Ligas a sincronizar/listar: 71 Série A, 72 Série B, 73 Copa do Brasil — ou "all"
+      SPORTS_LEAGUE_IDS: ${SPORTS_LEAGUE_IDS:-71,72,73}
+      # Máx. jogos já terminados por competição na listagem (foco em ao vivo / próximos)
+      SPORTS_MAX_FINISHED_PER_LEAGUE: ${SPORTS_MAX_FINISHED_PER_LEAGUE:-4}
+      SPORTS_RATE_LIMIT_MAX: ${SPORTS_RATE_LIMIT_MAX:-20}
+      SPORT_1X2_ODDS_HOME: ${SPORT_1X2_ODDS_HOME:-}
+      SPORT_1X2_ODDS_DRAW: ${SPORT_1X2_ODDS_DRAW:-}
+      SPORT_1X2_ODDS_AWAY: ${SPORT_1X2_ODDS_AWAY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./tuaobet-frontend
+      dockerfile: Dockerfile
+      args:
+        # Deve coincidir com a porta publicada do backend acima
+        VITE_API_URL: http://localhost:3001
+    container_name: tuaobet-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  tuaobet_pgdata:

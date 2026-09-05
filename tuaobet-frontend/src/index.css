@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-tuao-dark-950 text-tuao-text-primary font-sans antialiased;
+}
+
+/* Estilização para a barra de rolagem */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-tuao-dark-950;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-tuao-dark-800 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-tuao-dark-700;
+}
+
+/* Aviso global modo TOAST — entra da esquerda para a posição no canto inferior direito */
+@keyframes tuao-toast-in {
+  from {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.tuao-announcement-toast {
+  animation: tuao-toast-in 0.45s ease-out forwards;
+}

@@ -1,0 +1,22 @@
+# Desenvolvimento com hot reload no backend (sem rebuild a cada alteração em src/).
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up db backend -d
+#
+# Depois, no host:
+#   cd tuaobet-frontend && VITE_API_URL=http://localhost:3001 npm run dev
+#
+# Abre http://localhost:5173 — o Nginx na 8080 não é usado neste fluxo.
+
+services:
+  backend:
+    build:
+      context: ./tuaobet-backend
+      dockerfile: Dockerfile.dev
+    environment:
+      NODE_ENV: development
+      FRONTEND_URL: http://localhost:5173,http://localhost:8080
+    volumes:
+      - ./tuaobet-backend/src:/app/src
+      - ./tuaobet-backend/prisma:/app/prisma
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run dev"

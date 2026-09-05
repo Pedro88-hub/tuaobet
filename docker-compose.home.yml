@@ -1,0 +1,19 @@
+# TuaoBet — PC em casa atrás de Cloudflare Tunnel
+# Uso (na pasta do projeto, com Docker a correr):
+#   docker compose -f docker-compose.yml -f docker-compose.home.yml up -d --build
+#
+# Define no .env na raiz (opcional; os defaults já usam tuao.dev.br):
+#   PUBLIC_API_URL=https://api.tuao.dev.br
+#   PUBLIC_FRONTEND_URL=https://tuao.dev.br,https://bet.tuao.dev.br,http://localhost:8080,http://localhost:5173
+#
+# FRONTEND_URL inclui localhost para ainda poderes testar no PC sem túnel.
+
+services:
+  backend:
+    environment:
+      FRONTEND_URL: ${PUBLIC_FRONTEND_URL:-https://tuao.dev.br,https://bet.tuao.dev.br,http://localhost:8080,http://localhost:5173}
+
+  frontend:
+    build:
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-https://api.tuao.dev.br}

@@ -1,0 +1,16 @@
+# Copia para config.yml e preenche tunnel ID + caminho do credentials-file
+# (o cloudflared indica o caminho ao criares o túnel no Windows).
+#
+# Depois: cloudflared tunnel --config C:\caminho\para\config.yml run
+
+tunnel: COLOQUE_O_TUNNEL_UUID_AQUI
+credentials-file: C:\Users\SEU_USUARIO\.cloudflared\COLOQUE_O_TUNNEL_UUID_AQUI.json
+
+ingress:
+  - hostname: tuao.dev.br
+    service: http://127.0.0.1:8080
+  - hostname: bet.tuao.dev.br
+    service: http://127.0.0.1:8080
+  - hostname: api.tuao.dev.br
+    service: http://127.0.0.1:3001
+  - service: http_status:404
