@@ -37,6 +37,10 @@ app.use(
 );
 app.use(express.json());
 
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'tuaobet-api' });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicSiteRoutes);
 app.use('/api/admin', adminRoutes);

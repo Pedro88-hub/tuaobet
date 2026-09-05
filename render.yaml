@@ -1,0 +1,31 @@
+# Blueprint Render — API TuaoBet
+# Depois de criar o Postgres no Neon, cola DATABASE_URL nos env vars do serviço.
+# Dashboard: https://dashboard.render.com → New → Blueprint → este repositório
+
+services:
+  - type: web
+    name: tuaobet-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: tuaobet-backend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://pedro88-hub.github.io,https://tuao.dev.br,https://bet.tuao.dev.br,http://localhost:5173,http://localhost:8080
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: APISPORTS_FOOTBALL_KEY
+        sync: false
+      - key: APISPORTS_TIMEZONE
+        value: America/Sao_Paulo
+      - key: SPORTS_LEAGUE_IDS
+        value: 71,72,73
