@@ -127,8 +127,8 @@ export function CrashGame() {
 
   return (
     <Layout>
-      <div className="mx-auto flex max-w-6xl flex-col gap-0 p-2 pb-8 text-white sm:p-4">
-        <div className="flex flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:flex-row lg:bg-tuao-dark-900">
+      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-0 p-2 pb-8 text-white sm:p-4">
+        <div className="flex min-w-0 flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:flex-row lg:bg-tuao-dark-900">
           {/* Painel de apostas — em mobile fica abaixo do gráfico (estilo app) */}
           <div className="flex min-h-0 w-full shrink-0 flex-col border-t border-tuao-dark-800 bg-blaze-panel lg:w-[300px] lg:border-b-0 lg:border-r lg:border-t-0 lg:bg-tuao-dark-900">
             <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4">
@@ -296,12 +296,12 @@ export function CrashGame() {
           </div>
 
           {/* Visualizador — histórico no topo no mobile (referência Blaze) */}
-          <div className="relative flex min-h-0 flex-1 flex-col bg-blaze-panel lg:min-h-[640px] lg:bg-tuao-dark-900">
-            <div className="shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2.5 lg:bg-tuao-dark-950/50">
-              <div className="relative min-h-[38px] min-w-0 pr-10">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-blaze-panel lg:min-h-[640px] lg:bg-tuao-dark-900">
+            <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2.5 lg:bg-tuao-dark-950/50">
+              <div className="relative min-h-[38px] min-w-0 overflow-hidden pr-10">
                 <div
                   className={cn(
-                    'overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]',
+                    'max-w-full overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]',
                     '[scrollbar-color:rgba(42,42,42,1)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tuao-dark-600'
                   )}
                 >
@@ -310,7 +310,7 @@ export function CrashGame() {
                       Ainda sem histórico nesta sessão.
                     </span>
                   ) : (
-                    <div className="inline-flex min-h-[30px] items-center gap-2 pr-1">
+                    <div className="inline-flex min-h-[30px] w-max max-w-none items-center gap-2 pr-1">
                       {history.map((val, i) => (
                         <div
                           key={i}
@@ -342,12 +342,12 @@ export function CrashGame() {
               </div>
             </div>
 
-            <div className="relative flex min-h-[280px] flex-1 flex-col items-center justify-center overflow-hidden px-2 pt-2 sm:min-h-[320px] lg:min-h-[420px]">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
+            <div className="relative flex min-h-[280px] min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 pt-2 sm:min-h-[320px] lg:min-h-[420px]">
+              <div className="pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
               <div
                 className={cn(
-                  'absolute inset-0 transition-opacity duration-1000 radial-gradient-center',
-                  'opacity-10 bg-tuao-primary/5'
+                  'pointer-events-none absolute inset-0 transition-opacity duration-1000',
+                  'bg-[radial-gradient(ellipse_at_center,rgba(0,240,255,0.12),transparent_65%)] opacity-10'
                 )}
               />
 

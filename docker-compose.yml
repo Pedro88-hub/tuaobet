@@ -19,8 +19,8 @@ services:
       POSTGRES_PASSWORD: tuaobet_secret
       POSTGRES_DB: tuaobet
     ports:
-      # Porta 5432 no teu PC — para o DBeaver ligar aqui
-      - "5432:5432"
+      # 5434 no PC (5432 costuma estar ocupada por outros Postgres locais) — DBeaver: localhost:5434
+      - "5434:5432"
     volumes:
       - tuaobet_pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -48,11 +48,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Conteúdo Principal com Scroll */}
         <main className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar transition-all duration-300"
+          "min-w-0 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar transition-all duration-300"
           // Removida a margem direita (lg:mr-80) pois não há mais sidebar direita
         )}>
           <GlobalAnnouncementBar />
-          <div className="p-4 pb-24 md:p-6 lg:pb-6 max-w-[1400px] mx-auto min-h-full">
+          <div className="mx-auto min-h-full min-w-0 max-w-[1400px] p-4 pb-24 md:p-6 lg:pb-6">
             {children}
           </div>
 

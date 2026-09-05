@@ -9,7 +9,30 @@ const VIEW_WINDOW_SEC = 14;
 
 const MIN_SPAN_EARLY_SEC = 8;
 
+/**
+ * Margem do plot (%) para o marcador hex (~32px + glow) não ser cortado em voos longos,
+ * quando a ponta cola na borda direita (câmara a deslizar).
+ */
+const PLOT_PAD_X = 5;
+const PLOT_PAD_Y = 6;
+
 const clamp01 = (v: number) => Math.min(100, Math.max(0, v));
+
+/** Mapeia 0–100 do domínio lógico para a área útil do SVG (com padding). */
+function plotX(raw0to100: number): number {
+  return PLOT_PAD_X + (clamp01(raw0to100) / 100) * (100 - 2 * PLOT_PAD_X);
+}
+
+/** Y SVG (0 = topo): rawY 0 = multiplicador baixo (fundo), 100 = topo do domínio. */
+function plotSvgY(rawBottom0to100: number): number {
+  const usable = 100 - 2 * PLOT_PAD_Y;
+  return PLOT_PAD_Y + (1 - clamp01(rawBottom0to100) / 100) * usable;
+}
+
+/** CSS `bottom` (%): mesmo domínio que plotSvgY, mas medido a partir do fundo. */
+function plotBottom(rawBottom0to100: number): number {
+  return PLOT_PAD_Y + (clamp01(rawBottom0to100) / 100) * (100 - 2 * PLOT_PAD_Y);
+}
 
 export type CrashGridLine = { value: number; y: number };
 
@@ -38,8 +61,8 @@ function buildGridLines(maxY: number): CrashGridLine[] {
   const startVal = Math.ceil(1.01 / step) * step;
 
   for (let val = startVal; val < maxY; val += step) {
-    const yPct = ((val - 1) / (maxY - 1)) * 100;
-    lines.push({ value: val, y: 100 - yPct });
+    const rawBottom = ((val - 1) / (maxY - 1)) * 100;
+    lines.push({ value: val, y: plotSvgY(rawBottom) });
   }
   return lines;
 }
@@ -63,7 +86,7 @@ function buildVerticalTimeLines(tStart: number, tNow: number, tSpan: number): Cr
   let t = Math.ceil((tStart - 1e-6) / step) * step;
   for (; t <= tNow + 1e-6; t += step) {
     if (t < tStart - 1e-6) continue;
-    lines.push({ tSec: t, leftPct: timeToX(t, tStart, tSpan) });
+    lines.push({ tSec: t, leftPct: plotX(timeToX(t, tStart, tSpan)) });
   }
   return lines;
 }
@@ -71,12 +94,12 @@ function buildVerticalTimeLines(tStart: number, tNow: number, tSpan: number): Cr
 function buildTimeAxisTicks(tStart: number, tNow: number, tSpan: number): CrashTimeTick[] {
   const n = 5;
   if (tNow - tStart < 1e-6) {
-    return [{ sec: tStart, leftPct: 50 }];
+    return [{ sec: tStart, leftPct: plotX(50) }];
   }
   const ticks: CrashTimeTick[] = [];
   for (let j = 0; j < n; j++) {
     const sec = tStart + (tNow - tStart) * (j / (n - 1));
-    ticks.push({ sec, leftPct: timeToX(sec, tStart, tSpan) });
+    ticks.push({ sec, leftPct: plotX(timeToX(sec, tStart, tSpan)) });
   }
   return ticks;
 }
@@ -104,17 +127,17 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
     const u = i / steps;
     const t = tSample0 + (tNow - tSample0) * u;
     const mi = mAt(t);
-    const x = timeToX(t, tStart, tSpan);
-    const y = clamp01(100 - ((mi - 1) / (maxY - 1)) * 100);
-    pts.push({ x, y });
+    const rawX = timeToX(t, tStart, tSpan);
+    const rawBottom = ((mi - 1) / (maxY - 1)) * 100;
+    pts.push({ x: plotX(rawX), y: plotSvgY(rawBottom) });
   }
 
   if (pts.length === 0) {
     return {
-      pathD: 'M 0 100',
-      areaD: 'M 0 100 L 0 100 Z',
-      planeLeftPct: 0,
-      planeBottomPct: 0,
+      pathD: `M ${plotX(0)} ${plotSvgY(0)}`,
+      areaD: `M ${plotX(0)} ${plotSvgY(0)} L ${plotX(0)} ${plotSvgY(0)} Z`,
+      planeLeftPct: plotX(0),
+      planeBottomPct: plotBottom(0),
       gridLines: buildGridLines(maxY),
       timeAxisTicks: buildTimeAxisTicks(0, 0, 1),
       verticalTimeLines: [],
@@ -127,16 +150,16 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
   }
 
   const last = pts[pts.length - 1];
-  const areaD = `${pathD} L ${last.x} 100 L ${pts[0].x} 100 Z`;
+  const floorY = 100 - PLOT_PAD_Y;
+  const areaD = `${pathD} L ${last.x} ${floorY} L ${pts[0].x} ${floorY} Z`;
 
-  const planeLeftPct = last.x;
-  const planeBottomPct = clamp01(((m - 1) / (maxY - 1)) * 100);
+  const rawBottomTip = ((m - 1) / (maxY - 1)) * 100;
 
   return {
     pathD,
     areaD,
-    planeLeftPct,
-    planeBottomPct,
+    planeLeftPct: last.x,
+    planeBottomPct: plotBottom(rawBottomTip),
     gridLines: buildGridLines(maxY),
     timeAxisTicks: buildTimeAxisTicks(tStart, tNow, tSpan),
     verticalTimeLines: buildVerticalTimeLines(tStart, tNow, tSpan),

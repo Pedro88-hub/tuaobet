@@ -6,20 +6,26 @@ const HEX_CLIP =
 
 /**
  * Marcador na ponta da curva — hexágono com “T” como o ícone da navbar TuãoBet.
+ * O “T” fica num box fixo centrado para não “escapar” do hex em voos longos / fontes sintéticas.
  */
 export function CrashTuaoLogoMark({ className }: { className?: string }) {
   return (
-    <div className={cn('relative flex items-center justify-center', className)}>
-      <div className="absolute -inset-1.5 rounded-full bg-tuao-primary/20 blur-md" />
+    <div className={cn('relative flex h-8 w-8 shrink-0 items-center justify-center', className)}>
+      <div className="pointer-events-none absolute -inset-1 rounded-full bg-tuao-primary/20 blur-md" aria-hidden />
       <div
-        className="absolute left-0 top-1/2 h-0.5 w-5 max-w-[min(2.5rem,18vw)] -translate-x-full -translate-y-1/2 bg-gradient-to-l from-tuao-primary/85 via-tuao-primary/35 to-transparent opacity-80"
+        className="pointer-events-none absolute left-0 top-1/2 h-0.5 w-4 -translate-x-full -translate-y-1/2 bg-gradient-to-l from-tuao-primary/85 via-tuao-primary/35 to-transparent opacity-80"
         aria-hidden
       />
       <div
-        className="relative z-10 flex h-8 w-8 items-center justify-center bg-gradient-to-br from-tuao-primary to-cyan-600 shadow-[0_0_20px_rgba(0,240,255,0.55),inset_0_1px_0_rgba(255,255,255,0.35)]"
+        className="relative z-10 flex h-8 w-8 items-center justify-center overflow-hidden bg-gradient-to-br from-tuao-primary to-cyan-600 shadow-[0_0_20px_rgba(0,240,255,0.55),inset_0_1px_0_rgba(255,255,255,0.35)]"
         style={{ clipPath: HEX_CLIP }}
       >
-        <span className="select-none text-[0.95rem] font-black leading-none text-tuao-dark-950">T</span>
+        <span
+          className="flex h-5 w-5 select-none items-center justify-center text-[13px] font-extrabold leading-none text-tuao-dark-950"
+          aria-hidden
+        >
+          T
+        </span>
       </div>
     </div>
   );

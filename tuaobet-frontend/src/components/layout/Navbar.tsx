@@ -115,8 +115,10 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
         </button>
 
         <Link to="/" className="flex min-w-0 items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-tuao-primary to-cyan-600 shadow-[0_0_16px_rgba(0,240,255,0.35)]">
-            <span className="font-black text-lg leading-none text-tuao-dark-950">T</span>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-tuao-primary to-cyan-600 shadow-[0_0_16px_rgba(0,240,255,0.35)]">
+            <span className="flex h-5 w-5 items-center justify-center text-[15px] font-extrabold leading-none text-tuao-dark-950">
+              T
+            </span>
           </div>
           <span className="hidden font-black text-lg italic tracking-tight text-white sm:inline md:text-xl">
             TUÃO<span className="text-tuao-primary">BET</span>
