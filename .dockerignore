@@ -1,0 +1,10 @@
+# Ignore frontend and local tooling when building the API image from repo root
+tuaobet-frontend
+cloudflared
+.github
+.claude
+*.md
+.env
+**/.env
+deploy-pages.ps1
+docker-compose*.yml
