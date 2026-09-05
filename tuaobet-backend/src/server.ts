@@ -22,12 +22,14 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-const frontendOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+const frontendOrigins = (
+  process.env.FRONTEND_URL ||
+  'https://pedro88-hub.github.io,http://localhost:5173,http://localhost:8080'
+)
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
-const corsOrigin =
-  frontendOrigins.length <= 1 ? (frontendOrigins[0] ?? 'http://localhost:5173') : frontendOrigins;
+const corsOrigin = frontendOrigins;
 
 app.use(
   cors({
@@ -38,7 +40,11 @@ app.use(
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
-  res.status(200).json({ ok: true, service: 'tuaobet-api' });
+  res.status(200).json({
+    ok: true,
+    service: 'tuaobet-api',
+    cors: frontendOrigins,
+  });
 });
 
 app.use('/api/auth', authRoutes);
