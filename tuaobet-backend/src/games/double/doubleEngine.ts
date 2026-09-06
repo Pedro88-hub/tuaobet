@@ -302,6 +302,60 @@ export const initDoubleGame = (io: Server) => {
         socket.emit('double:error', { code: 'INSUFFICIENT_BALANCE' });
       }
     });
+
+    socket.on('double:cancel', async () => {
+      const userId = socket.data.userId as string | undefined;
+      if (!userId) {
+        socket.emit('double:error', { code: 'AUTH' });
+        return;
+      }
+      if (doubleState !== 'WAITING') {
+        socket.emit('double:error', { code: 'CLOSED' });
+        return;
+      }
+
+      const mine = roundBets.filter((b) => b.userId === userId);
+      if (mine.length === 0) {
+        socket.emit('double:error', { code: 'NO_BET' });
+        return;
+      }
+
+      const refundTotal =
+        Math.round(mine.reduce((sum, b) => sum + b.amount, 0) * 100) / 100;
+      const betIds = mine.map((b) => b.betId);
+
+      // Remover da ronda já (síncrono) para a liquidação não incluir estas apostas
+      roundBets = roundBets.filter((b) => b.userId !== userId);
+
+      try {
+        if (doubleState !== 'WAITING') {
+          roundBets.push(...mine);
+          socket.emit('double:error', { code: 'CLOSED' });
+          return;
+        }
+
+        await prisma.$transaction(async (tx) => {
+          await creditPayout(userId, refundTotal, 'Double — cancelamento', tx);
+          await tx.bet.updateMany({
+            where: { id: { in: betIds }, result: 'pending' },
+            data: {
+              result: 'cancelled',
+              payout: 0,
+              multiplier: null,
+            },
+          });
+        });
+
+        io.emit('double:bets', shuffleDisplay(displayBetsForClients()));
+        pushWalletBalance(userId);
+        socket.emit('double:bet-cancelled', { refunded: refundTotal });
+      } catch {
+        if (doubleState === 'WAITING') {
+          roundBets.push(...mine);
+        }
+        socket.emit('double:error', { code: 'INVALID' });
+      }
+    });
   });
 
   doubleLoop();

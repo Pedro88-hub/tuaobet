@@ -124,11 +124,17 @@ export function useDoubleGame() {
         INSUFFICIENT_BALANCE: 'Saldo insuficiente.',
         MIN_BET: 'Valor abaixo do mínimo.',
         MAX_BET: 'Valor acima do máximo.',
+        NO_BET: 'Nenhuma aposta para cancelar.',
+        ACCOUNT_BLOCKED: 'Conta bloqueada.',
       };
       setLastError(map[data.code ?? ''] || data.code || 'Erro');
     });
 
     socket.on('double:bet-accepted', () => {
+      setLastError(null);
+    });
+
+    socket.on('double:bet-cancelled', () => {
       setLastError(null);
     });
 
@@ -147,12 +153,18 @@ export function useDoubleGame() {
       socket.off('double:result');
       socket.off('double:error');
       socket.off('double:bet-accepted');
+      socket.off('double:bet-cancelled');
     };
   }, []);
 
   const placeBet = useCallback((amount: number, color: DoubleColor) => {
     setLastError(null);
     getSocket().emit('double:bet', { amount, color });
+  }, []);
+
+  const cancelBet = useCallback(() => {
+    setLastError(null);
+    getSocket().emit('double:cancel');
   }, []);
 
   return {
@@ -162,6 +174,7 @@ export function useDoubleGame() {
     history,
     bets,
     placeBet,
+    cancelBet,
     lastError,
     fairnessCommit,
     fairnessReveal,

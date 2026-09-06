@@ -40,10 +40,12 @@ export function DoubleGame() {
     history,
     bets,
     placeBet,
+    cancelBet,
     lastError,
   } = useDoubleGame();
 
   const [amount, setAmount] = useState('');
+  const [selectedColor, setSelectedColor] = useState<DoubleColor | null>(null);
   const [lowerTab, setLowerTab] = useState<'apostas' | 'descricao'>('apostas');
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
 
@@ -51,6 +53,12 @@ export function DoubleGame() {
     bets
       .filter((b) => (b.username || b.name) === user?.username && b.color === color)
       .reduce((acc, b) => acc + b.amount, 0);
+
+  const myTotalBet =
+    sumMyBets('red') + sumMyBets('white') + sumMyBets('black');
+  const hasActiveBet = myTotalBet > 0;
+  const parsedAmount = parseFloat(amount.trim() || '');
+  const amountValid = Number.isFinite(parsedAmount) && parsedAmount > 0;
 
   // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
   const [timeLeft, setTimeLeft] = useState(countdown);
@@ -67,20 +75,79 @@ export function DoubleGame() {
     return () => clearInterval(interval);
   }, [gameState]);
 
+  // Nova ronda WAITING sem aposta: limpar seleção prévia
+  useEffect(() => {
+    if (gameState === 'WAITING' && !hasActiveBet) {
+      setSelectedColor(null);
+    }
+  }, [gameState, hasActiveBet]);
+
+  // Após aposta confirmada, manter a cor apostada selecionada
+  useEffect(() => {
+    if (!hasActiveBet || !user?.username) return;
+    if (sumMyBets('red') > 0) setSelectedColor('red');
+    else if (sumMyBets('white') > 0) setSelectedColor('white');
+    else if (sumMyBets('black') > 0) setSelectedColor('black');
+    // sumMyBets is stable per render; intentional deps on bets/user
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasActiveBet, bets, user?.username]);
+
   // Referência para o container da roleta (para animação CSS)
   const rouletteRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef(0);
 
-  const onPlaceBet = (color: DoubleColor) => {
+  const onSelectColor = (color: DoubleColor) => {
     if (!isAuthenticated) {
       openLoginModal();
       return;
     }
     if (gameState !== 'WAITING') return;
-    const v = parseFloat(amount.trim() || '');
-    if (!Number.isFinite(v) || v <= 0) return;
-    placeBet(v, color);
+    if (hasActiveBet) return;
+    setSelectedColor(color);
   };
+
+  const onConfirmBet = () => {
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
+    if (gameState !== 'WAITING' || hasActiveBet) return;
+    if (!selectedColor || !amountValid) return;
+    placeBet(parsedAmount, selectedColor);
+  };
+
+  const onCancelBet = () => {
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
+    if (gameState !== 'WAITING' || !hasActiveBet) return;
+    cancelBet();
+  };
+
+  type CtaMode = 'apostar' | 'cancelar' | 'apostado' | 'esperando';
+  const ctaMode: CtaMode =
+    gameState === 'WAITING'
+      ? hasActiveBet
+        ? 'cancelar'
+        : 'apostar'
+      : hasActiveBet
+        ? 'apostado'
+        : 'esperando';
+
+  const ctaDisabled =
+    ctaMode === 'apostado' ||
+    ctaMode === 'esperando' ||
+    (ctaMode === 'apostar' && (!selectedColor || !amountValid));
+
+  const ctaLabel =
+    ctaMode === 'cancelar'
+      ? 'Cancelar'
+      : ctaMode === 'apostado'
+        ? 'Apostado'
+        : ctaMode === 'esperando'
+          ? 'Esperando'
+          : 'Apostar';
 
   // Calcular posição final da roleta
   useEffect(() => {
@@ -247,40 +314,58 @@ export function DoubleGame() {
                       <DoubleColorBetCard
                         color="red"
                         multiplier="x2"
-                        disabled={gameState !== 'WAITING'}
+                        disabled={gameState !== 'WAITING' || hasActiveBet}
+                        selected={selectedColor === 'red'}
                         highlighted={sumMyBets('red') > 0}
-                        onClick={() => onPlaceBet('red')}
+                        onClick={() => onSelectColor('red')}
                       />
                       <DoubleColorBetCard
                         color="white"
                         multiplier="x14"
-                        disabled={gameState !== 'WAITING'}
+                        disabled={gameState !== 'WAITING' || hasActiveBet}
+                        selected={selectedColor === 'white'}
                         highlighted={sumMyBets('white') > 0}
-                        onClick={() => onPlaceBet('white')}
+                        onClick={() => onSelectColor('white')}
                       />
                       <DoubleColorBetCard
                         color="black"
                         multiplier="x2"
-                        disabled={gameState !== 'WAITING'}
+                        disabled={gameState !== 'WAITING' || hasActiveBet}
+                        selected={selectedColor === 'black'}
                         highlighted={sumMyBets('black') > 0}
-                        onClick={() => onPlaceBet('black')}
+                        onClick={() => onSelectColor('black')}
                       />
                     </div>
-                    <div
-                      role="status"
+                    <button
+                      type="button"
+                      onClick={ctaMode === 'cancelar' ? onCancelBet : onConfirmBet}
+                      disabled={ctaDisabled}
                       aria-live="polite"
                       className={cn(
-                        'w-full rounded-lg border py-3.5 text-center text-sm font-bold',
-                        gameState === 'WAITING'
-                          ? 'border-tuao-dark-700 bg-tuao-dark-800 text-tuao-text-secondary'
-                          : 'border-tuao-primary/25 bg-tuao-dark-950 text-tuao-primary/85 shadow-[0_0_18px_rgba(0,240,255,0.08)]'
+                        'w-full rounded-lg border py-3.5 text-center text-sm font-bold transition-colors',
+                        ctaMode === 'apostar' &&
+                          !ctaDisabled &&
+                          'border-tuao-primary/40 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_18px_rgba(0,240,255,0.2)] hover:bg-tuao-primary-hover',
+                        ctaMode === 'apostar' &&
+                          ctaDisabled &&
+                          'cursor-not-allowed border-tuao-dark-700 bg-tuao-dark-800 text-tuao-text-secondary',
+                        ctaMode === 'cancelar' &&
+                          'border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25',
+                        ctaMode === 'apostado' &&
+                          'cursor-default border-emerald-500/30 bg-emerald-500/10 text-emerald-300/90',
+                        ctaMode === 'esperando' &&
+                          'cursor-default border-tuao-primary/25 bg-tuao-dark-950 text-tuao-primary/85 shadow-[0_0_18px_rgba(0,240,255,0.08)]'
                       )}
                     >
-                      {gameState === 'WAITING' ? 'Aposta ao tocar na cor' : 'Esperando'}
-                    </div>
+                      {ctaLabel}
+                    </button>
                   </div>
                   <p className="text-center text-[10px] leading-snug text-tuao-text-secondary">
-                    Toque na cor para apostar nesta ronda.
+                    {ctaMode === 'cancelar'
+                      ? 'Podes cancelar e reaver o saldo enquanto a ronda está aberta.'
+                      : ctaMode === 'apostado'
+                        ? 'Aposta bloqueada — a ronda já começou.'
+                        : 'Seleciona a cor e confirma com Apostar.'}
                   </p>
                 </div>
               </div>
