@@ -31,15 +31,17 @@ jobs:
       - name: Install & build
         working-directory: tuaobet-frontend
         env:
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Domínio custom bet.tuao.dev.br — base na raiz (não /tuaobet/)
+          VITE_BASE_PATH: /
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           if [ -z "$VITE_API_URL" ]; then
-            export VITE_API_URL="https://api.tuao.dev.br"
+            export VITE_API_URL="https://tuaobet.onrender.com"
           fi
           npm ci
           npm run build
           cp dist/index.html dist/404.html
+          echo -n "bet.tuao.dev.br" > dist/CNAME
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

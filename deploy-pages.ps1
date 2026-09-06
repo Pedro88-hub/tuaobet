@@ -19,7 +19,7 @@ if ($GithubPath) {
 }
 
 if (-not $env:VITE_API_URL) {
-  $env:VITE_API_URL = "https://api.tuao.dev.br"
+  $env:VITE_API_URL = "https://tuaobet.onrender.com"
 }
 
 Push-Location $Frontend
