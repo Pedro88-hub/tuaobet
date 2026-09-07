@@ -81,10 +81,12 @@ function broadcastBets(io: Server) {
 
 function emitCrashSnapshot(socket: Socket) {
   socket.emit('crash:history', crashHistory);
+  const lastMultiplier =
+    gameState === 'CRASHED' && crashPoint > 0 ? crashPoint : multiplier;
   socket.emit('crash:state', {
     state: gameState,
     countdown: gameState === 'COUNTDOWN' ? crashLiveCountdown : 0,
-    lastMultiplier: multiplier,
+    lastMultiplier,
     roundId: bettingRoundId,
   });
   socket.emit('crash:bets', displayLeaderboardForClients());
@@ -154,6 +156,13 @@ export const initCrashGame = (io: Server) => {
     const thisRunningRoundId = runningRoundId;
     multiplier = 1.0;
     crashPoint = roundCrashPoint;
+
+    io.emit('crash:state', {
+      state: 'RUNNING',
+      countdown: 0,
+      lastMultiplier: 1,
+      roundId: runningRoundId,
+    });
 
     const startTime = Date.now();
 

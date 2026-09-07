@@ -49,18 +49,31 @@ export function useCrashGame() {
       setFairnessCommit(data);
     });
 
-    socket.on('crash:state', (data: { state: GameState; countdown: number }) => {
-      setGameState(data.state);
-      setCountdown(data.countdown ?? 0);
-      if (data.state === 'IDLE' || data.state === 'COUNTDOWN') {
-        setMultiplier(1.0);
+    socket.on(
+      'crash:state',
+      (data: {
+        state: GameState;
+        countdown: number;
+        lastMultiplier?: number;
+        roundId?: number;
+      }) => {
+        setGameState(data.state);
+        setCountdown(data.countdown ?? 0);
+        if (data.state === 'IDLE' || data.state === 'COUNTDOWN') {
+          setMultiplier(1.0);
+        } else if (
+          (data.state === 'RUNNING' || data.state === 'CRASHED') &&
+          data.lastMultiplier != null
+        ) {
+          setMultiplier(data.lastMultiplier);
+        }
+        if (data.state === 'COUNTDOWN' && data.countdown === 6) {
+          setHasServerBet(false);
+          setServerCashedOut(false);
+          setServerPayout(0);
+        }
       }
-      if (data.state === 'COUNTDOWN' && data.countdown === 6) {
-        setHasServerBet(false);
-        setServerCashedOut(false);
-        setServerPayout(0);
-      }
-    });
+    );
 
     socket.on('crash:countdown', (count: number) => {
       setCountdown(count);
