@@ -178,14 +178,55 @@ export function MinesGame() {
     }
   }, []);
 
+  const primaryCta =
+    betMode === 'auto' ? (
+      <Button
+        type="button"
+        size="lg"
+        className={cn(
+          'h-12 w-full px-2 text-[11px] font-black uppercase tracking-wider sm:text-sm',
+          isAutoPlaying
+            ? 'border border-red-500/40 bg-red-500/90 text-white hover:bg-red-600'
+            : 'border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover'
+        )}
+        onClick={toggleAutoPlay}
+      >
+        {isAutoPlaying ? 'Parar auto' : 'Iniciar auto'}
+      </Button>
+    ) : gameState === 'PLAYING' ? (
+      <Button
+        type="button"
+        size="lg"
+        className="h-12 w-full border border-emerald-500/35 bg-emerald-600 px-2 text-[11px] font-black uppercase tracking-wider text-white hover:bg-emerald-500 sm:text-sm"
+        onClick={cashout}
+      >
+        <span className="flex flex-col items-center leading-tight">
+          <span>Retirar</span>
+          <span className="text-[10px] font-bold tabular-nums opacity-90 sm:text-[11px]">
+            R$ {totalWin.toFixed(2)}
+          </span>
+        </span>
+      </Button>
+    ) : (
+      <Button
+        type="button"
+        size="lg"
+        className="h-12 w-full border border-tuao-primary/30 bg-tuao-primary px-2 text-[11px] font-black uppercase tracking-wider text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover sm:text-sm"
+        onClick={beginRound}
+      >
+        Começar o jogo
+      </Button>
+    );
+
   return (
     <Layout>
-      <div className="flex flex-col gap-0 p-4 pb-8 text-white max-w-6xl mx-auto">
-        <div className="flex flex-col lg:flex-row gap-0 rounded-xl overflow-hidden border border-tuao-dark-800 shadow-card bg-tuao-dark-900">
-          {/* Painel de apostas (esquerda) — alinhado ao Double */}
-          <div className="w-full lg:w-[300px] shrink-0 flex min-h-0 flex-col border-b border-tuao-dark-800 bg-tuao-dark-900 lg:border-b-0 lg:border-r">
-            <div className="shrink-0 px-4 pt-3 pb-2">
-              <div className="flex rounded-lg border border-tuao-dark-800 bg-tuao-dark-950 p-1">
+      {/* Mobile: grid em cima, apostas embaixo — mesmo padrão Blaze/Double */}
+      <div className="mx-auto flex max-w-6xl flex-col gap-0 p-2 pb-8 text-white sm:p-4">
+        <div className="flex flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:flex-row lg:bg-tuao-dark-900">
+          {/* Painel de apostas */}
+          <div className="flex min-h-0 w-full shrink-0 flex-col border-t border-tuao-dark-800 bg-blaze-panel lg:w-[300px] lg:border-b-0 lg:border-r lg:border-t-0 lg:bg-tuao-dark-900">
+            <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4">
+              <div className="flex rounded-lg border border-tuao-dark-800 bg-[#1a242d] p-1 lg:bg-tuao-dark-950">
                 <button
                   type="button"
                   onClick={() => {
@@ -195,7 +236,7 @@ export function MinesGame() {
                   className={cn(
                     'flex-1 rounded-md py-2.5 text-sm font-bold transition-colors',
                     betMode === 'normal'
-                      ? 'bg-tuao-dark-800 text-white shadow-sm'
+                      ? 'bg-[#2a3540] text-white shadow-sm lg:bg-tuao-dark-800'
                       : 'text-tuao-text-secondary hover:text-white'
                   )}
                 >
@@ -207,7 +248,7 @@ export function MinesGame() {
                   className={cn(
                     'flex-1 rounded-md py-2.5 text-sm font-bold transition-colors',
                     betMode === 'auto'
-                      ? 'bg-tuao-dark-800 text-white shadow-sm'
+                      ? 'bg-[#2a3540] text-white shadow-sm lg:bg-tuao-dark-800'
                       : 'text-tuao-text-secondary hover:text-white'
                   )}
                 >
@@ -217,40 +258,44 @@ export function MinesGame() {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
-                <div className="flex gap-2">
-                  <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary">
-                    <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      disabled={gameState === 'PLAYING' && !isAutoPlaying}
-                      className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                    <span className="shrink-0 text-sm font-semibold text-white">R$</span>
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-3 sm:px-4 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
+                {/* Mobile Blaze: Quantia + ½/2x + CTA na mesma linha; desktop: CTA abaixo */}
+                <div className="flex flex-row gap-2 lg:flex-col">
+                  <div className="flex min-w-0 flex-1 gap-2 lg:w-full">
+                    <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary lg:bg-tuao-dark-950">
+                      <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        disabled={gameState === 'PLAYING' && !isAutoPlaying}
+                        className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span className="shrink-0 text-sm font-semibold text-white">R$</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleHalve}
+                      disabled={gameState === 'PLAYING'}
+                      className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50 sm:w-12 lg:bg-tuao-dark-800"
+                      aria-label="Metade do valor"
+                    >
+                      ½
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDouble}
+                      disabled={gameState === 'PLAYING'}
+                      className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50 sm:w-12 lg:bg-tuao-dark-800"
+                      aria-label="Dobrar o valor"
+                    >
+                      2x
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleHalve}
-                    disabled={gameState === 'PLAYING'}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50"
-                    aria-label="Metade do valor"
-                  >
-                    ½
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDouble}
-                    disabled={gameState === 'PLAYING'}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50"
-                    aria-label="Dobrar o valor"
-                  >
-                    2x
-                  </button>
+                  <div className="w-[7.75rem] shrink-0 sm:w-40 lg:w-full">{primaryCta}</div>
                 </div>
 
                 <div className="space-y-2">
@@ -260,7 +305,7 @@ export function MinesGame() {
                       value={minesCount}
                       onChange={(e) => setMinesCount(Number(e.target.value))}
                       disabled={gameState === 'PLAYING'}
-                      className="h-12 w-full cursor-pointer appearance-none rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 pr-10 text-base font-bold text-white outline-none transition-colors focus:border-tuao-primary focus:ring-1 focus:ring-tuao-primary disabled:opacity-50"
+                      className="h-12 w-full cursor-pointer appearance-none rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 pr-10 text-base font-bold text-white outline-none transition-colors focus:border-tuao-primary focus:ring-1 focus:ring-tuao-primary disabled:opacity-50 lg:bg-tuao-dark-950"
                     >
                       {Array.from({ length: 24 }, (_, i) => i + 1).map((num) => (
                         <option key={num} value={num}>
@@ -283,7 +328,7 @@ export function MinesGame() {
                           type="number"
                           value={autoBetCount}
                           onChange={(e) => setAutoBetCount(e.target.value)}
-                          className="h-12 border-tuao-dark-700 bg-tuao-dark-950 pr-10 text-base font-bold focus:border-tuao-primary"
+                          className="h-12 border-tuao-dark-700 bg-[#1a242d] pr-10 text-base font-bold focus:border-tuao-primary lg:bg-tuao-dark-950"
                           disabled={isAutoPlaying}
                         />
                         <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-tuao-text-secondary">
@@ -300,7 +345,7 @@ export function MinesGame() {
                           onChange={(e) => setAutoTilesCount(e.target.value)}
                           max={25 - minesCount}
                           min={1}
-                          className="h-12 border-tuao-dark-700 bg-tuao-dark-950 pr-10 text-base font-bold focus:border-tuao-primary"
+                          className="h-12 border-tuao-dark-700 bg-[#1a242d] pr-10 text-base font-bold focus:border-tuao-primary lg:bg-tuao-dark-950"
                           disabled={isAutoPlaying}
                         />
                         <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-tuao-text-secondary">
@@ -310,62 +355,21 @@ export function MinesGame() {
                     </div>
                   </>
                 )}
-
-                <div className="flex flex-col gap-2">
-                  {betMode === 'auto' ? (
-                    <Button
-                      type="button"
-                      size="lg"
-                      className={cn(
-                        'h-12 w-full text-sm font-black uppercase tracking-wider',
-                        isAutoPlaying
-                          ? 'border border-red-500/40 bg-red-500/90 text-white hover:bg-red-600'
-                          : 'border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover'
-                      )}
-                      onClick={toggleAutoPlay}
-                    >
-                      {isAutoPlaying ? 'Parar auto' : 'Iniciar auto'}
-                    </Button>
-                  ) : gameState === 'PLAYING' ? (
-                    <Button
-                      type="button"
-                      size="lg"
-                      className="h-12 w-full border border-emerald-500/35 bg-emerald-600 text-white text-sm font-black uppercase tracking-wider hover:bg-emerald-500"
-                      onClick={cashout}
-                    >
-                      <span className="flex flex-col items-center leading-tight">
-                        <span>Retirar</span>
-                        <span className="text-[11px] font-bold tabular-nums opacity-90">
-                          R$ {totalWin.toFixed(2)}
-                        </span>
-                      </span>
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="lg"
-                      className="h-12 w-full border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 text-sm font-black uppercase tracking-wider shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover"
-                      onClick={beginRound}
-                    >
-                      Começar o jogo
-                    </Button>
-                  )}
-                </div>
               </div>
 
-              <div className="flex shrink-0 flex-col gap-2 px-4 pb-3 pt-1">
+              <div className="flex shrink-0 flex-col gap-2 px-3 pb-3 pt-1 sm:px-4">
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
                     onClick={toggleFullscreen}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
                     aria-label="Ecrã inteiro"
                   >
                     <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
                   </button>
                   <Link
                     to="/fairness"
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
                     aria-label="Informação e justiça"
                   >
                     <Info className="h-4 w-4" strokeWidth={2.2} />
@@ -375,15 +379,15 @@ export function MinesGame() {
             </div>
 
             {lastError && (
-              <div className="mt-auto border-t border-tuao-dark-800 bg-tuao-dark-950/30 p-3">
+              <div className="mt-auto border-t border-tuao-dark-800 bg-[#1a242d]/50 p-3 lg:bg-tuao-dark-950/30">
                 <p className="text-center text-xs text-red-400">{lastError}</p>
               </div>
             )}
           </div>
 
-          {/* Visualizador (direita) */}
-          <div className="relative flex min-h-[440px] flex-1 flex-col bg-tuao-dark-900 lg:min-h-[520px]">
-            <div className="relative flex min-h-[240px] flex-1 flex-col items-center justify-center px-3 pb-6 pt-4 sm:px-6">
+          {/* Visualizador */}
+          <div className="relative flex min-h-0 flex-1 flex-col bg-blaze-panel lg:min-h-[520px] lg:bg-tuao-dark-900">
+            <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-8 pt-4 sm:px-6 sm:pb-6">
               <div className="grid aspect-square w-full max-w-[min(100%,560px)] grid-cols-5 gap-2.5 sm:max-w-[600px] sm:gap-4">
                 {Array.from({ length: 25 }).map((_, index) => {
                   const isRevealed = revealed[index];
@@ -488,8 +492,8 @@ export function MinesGame() {
         </div>
 
         {/* Secção inferior: abas (mesmo padrão Double) */}
-        <div className="mt-4 flex min-h-[280px] flex-col overflow-hidden rounded-xl border border-tuao-dark-800 bg-tuao-dark-900 shadow-card">
-          <div className="flex flex-wrap border-b border-tuao-dark-800 bg-tuao-dark-950/40">
+        <div className="mt-3 flex min-h-[280px] flex-col overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card sm:mt-4 lg:bg-tuao-dark-900">
+          <div className="flex flex-wrap border-b border-tuao-dark-800 bg-[#1a242d]/60 lg:bg-tuao-dark-950/40">
             <button
               type="button"
               onClick={() => setLowerTab('apostas')}
@@ -532,8 +536,8 @@ export function MinesGame() {
           </div>
 
           {lowerTab === 'apostas' ? (
-            <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden bg-tuao-dark-900">
-              <div className="shrink-0 border-b border-tuao-dark-800 bg-tuao-dark-950/55 px-3 py-3">
+            <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden bg-blaze-panel lg:bg-tuao-dark-900">
+              <div className="shrink-0 border-b border-tuao-dark-800 bg-[#1a242d]/55 px-3 py-3 lg:bg-tuao-dark-950/55">
                 <p className="text-[13px] font-black uppercase leading-tight tracking-tight text-white">
                   Apostas ao vivo
                 </p>
