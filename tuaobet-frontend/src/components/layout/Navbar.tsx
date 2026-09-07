@@ -333,13 +333,7 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                 aria-label="Carteira e saldo"
                 className="flex max-w-[10.5rem] min-w-0 items-center justify-center rounded-lg border border-tuao-dark-700/85 bg-tuao-dark-950 px-3 py-2 transition-colors hover:border-tuao-dark-600 sm:max-w-none sm:px-4 sm:py-2.5"
               >
-                <span
-                  className={cn(
-                    'min-w-0 truncate text-center text-xs font-extrabold tabular-nums tracking-tight text-white',
-                    'sm:text-sm',
-                    '[text-shadow:-1.5px_0_0_rgba(34,211,238,0.9),1.5px_0_0_rgba(251,113,133,0.88)]'
-                  )}
-                >
+                <span className="min-w-0 truncate text-center text-xs font-extrabold tabular-nums tracking-tight text-white sm:text-sm">
                   R$ {formatBalancePtBr(balance)}
                 </span>
               </button>
