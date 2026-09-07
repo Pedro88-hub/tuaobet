@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Modal } from '../components/ui/Modal';
 import { Link } from 'react-router-dom';
 import { useCrashGame } from '../hooks/useCrashGame';
@@ -58,10 +58,6 @@ export function CrashGame() {
   const [lowerTab, setLowerTab] = useState<'jogadores' | 'descricao'>('jogadores');
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
   const [historyModalPage, setHistoryModalPage] = useState(0);
-  const historyStripRef = useRef<HTMLDivElement>(null);
-
-  /** Faixa: cronológico LTR (mais antigo → mais recente). O array do server é mais recente primeiro. */
-  const historyOldestFirst = useMemo(() => [...history].reverse(), [history]);
 
   useEffect(() => {
     if (roundsHistoryOpen) setHistoryModalPage(0);
@@ -71,12 +67,6 @@ export function CrashGame() {
     const maxPage = Math.max(0, Math.ceil(history.length / CRASH_HISTORY_MODAL_PAGE_SIZE) - 1);
     setHistoryModalPage((p) => Math.min(p, maxPage));
   }, [history.length]);
-
-  useEffect(() => {
-    const el = historyStripRef.current;
-    if (!el) return;
-    el.scrollLeft = el.scrollWidth;
-  }, [historyOldestFirst]);
 
   const totalBets = useMemo(() => {
     return players.reduce((acc, p) => acc + p.bet, 0);
@@ -334,21 +324,25 @@ export function CrashGame() {
             <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2.5 lg:bg-tuao-dark-950/50">
               <div className="flex min-h-8 min-w-0 items-center gap-1.5">
                 <div
-                  ref={historyStripRef}
+                  dir="rtl"
                   className={cn(
                     'min-h-8 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:thin]',
                     '[scrollbar-color:rgba(42,42,42,1)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tuao-dark-600'
                   )}
                 >
-                  {historyOldestFirst.length === 0 ? (
-                    <span className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
+                  {history.length === 0 ? (
+                    <span dir="ltr" className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
                       Ainda sem histórico nesta sessão.
                     </span>
                   ) : (
-                    <div className="inline-flex h-8 w-max max-w-none items-center gap-2">
-                      {historyOldestFirst.map((val, i) => (
+                    /* Mais recente à direita (junto ao botão); anteriores para a esquerda */
+                    <div
+                      dir="ltr"
+                      className="inline-flex h-8 w-max max-w-none flex-row-reverse items-center gap-2"
+                    >
+                      {history.map((val, i) => (
                         <div
-                          key={`${val}-${i}`}
+                          key={i}
                           className={cn(
                             'flex h-8 min-w-[50px] shrink-0 items-center justify-center rounded-md border px-3 text-center font-mono text-xs font-bold transition-all hover:opacity-80',
                             val >= 2.0
