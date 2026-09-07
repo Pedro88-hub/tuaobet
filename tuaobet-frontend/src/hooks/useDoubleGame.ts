@@ -57,11 +57,19 @@ export function useDoubleGame() {
         countdown: number;
         roundId?: number;
         serverSeedHash?: string;
+        resultNumber?: number;
+        color?: DoubleColor;
       }) => {
         setGameState(data.state);
-        setCountdown(data.countdown);
+        setCountdown(data.countdown ?? 0);
         if (data.state === 'WAITING') {
           setResult(null);
+        } else if (
+          (data.state === 'SPINNING' || data.state === 'RESULT') &&
+          data.resultNumber != null &&
+          data.color
+        ) {
+          setResult({ number: data.resultNumber, color: data.color });
         }
         if (data.serverSeedHash && data.roundId != null) {
           setFairnessCommit({ roundId: data.roundId, serverSeedHash: data.serverSeedHash });

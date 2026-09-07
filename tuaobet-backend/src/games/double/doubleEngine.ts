@@ -69,11 +69,19 @@ function displayBetsForClients() {
 
 function emitDoubleSnapshot(socket: Socket) {
   socket.emit('double:history', history);
+  const midRoundResult =
+    (doubleState === 'SPINNING' || doubleState === 'RESULT') && doubleRoundSecret
+      ? {
+          resultNumber: doubleRoundSecret.resultNumber,
+          color: doubleRoundSecret.color,
+        }
+      : {};
   socket.emit('double:state', {
     state: doubleState,
     countdown: doubleState === 'WAITING' ? doubleLiveCountdown : 0,
     roundId: doubleRoundId,
     serverSeedHash: doubleCommitPublic?.serverSeedHash,
+    ...midRoundResult,
   });
   socket.emit('double:bets', shuffleDisplay(displayBetsForClients()));
   if (doubleCommitPublic) {
@@ -150,6 +158,14 @@ export const initDoubleGame = (io: Server) => {
     doubleState = 'SPINNING';
     const { resultNumber, color } = sec;
 
+    io.emit('double:state', {
+      state: 'SPINNING',
+      countdown: 0,
+      roundId: doubleRoundId,
+      serverSeedHash: doubleCommitPublic?.serverSeedHash,
+      resultNumber,
+      color,
+    });
     io.emit('double:spin', { resultNumber, color });
 
     setTimeout(() => {
@@ -210,6 +226,14 @@ export const initDoubleGame = (io: Server) => {
     const pub = doubleCommitPublic;
     const sec = doubleRoundSecret;
 
+    io.emit('double:state', {
+      state: 'RESULT',
+      countdown: 0,
+      roundId: doubleRoundId,
+      serverSeedHash: pub?.serverSeedHash,
+      resultNumber,
+      color,
+    });
     io.emit('double:result', {
       resultNumber,
       color,
