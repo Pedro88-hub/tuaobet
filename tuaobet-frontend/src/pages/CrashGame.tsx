@@ -335,14 +335,12 @@ export function CrashGame() {
                       Ainda sem histórico nesta sessão.
                     </span>
                   ) : (
-                    /* Mais recente à direita (junto ao botão); anteriores para a esquerda */
-                    <div
-                      dir="ltr"
-                      className="inline-flex h-8 w-max max-w-none flex-row-reverse items-center gap-2"
-                    >
+                    /* RTL: começa à direita (junto ao botão); mais recente → esquerda com os mais antigos */
+                    <div className="inline-flex h-8 w-max max-w-none items-center gap-2">
                       {history.map((val, i) => (
                         <div
                           key={i}
+                          dir="ltr"
                           className={cn(
                             'flex h-8 min-w-[50px] shrink-0 items-center justify-center rounded-md border px-3 text-center font-mono text-xs font-bold transition-all hover:opacity-80',
                             val >= 2.0
