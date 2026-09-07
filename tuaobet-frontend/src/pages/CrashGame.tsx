@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Modal } from '../components/ui/Modal';
 import { Link } from 'react-router-dom';
 import { useCrashGame } from '../hooks/useCrashGame';
@@ -58,6 +58,10 @@ export function CrashGame() {
   const [lowerTab, setLowerTab] = useState<'jogadores' | 'descricao'>('jogadores');
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
   const [historyModalPage, setHistoryModalPage] = useState(0);
+  const historyStripRef = useRef<HTMLDivElement>(null);
+
+  /** Faixa: cronológico LTR (mais antigo → mais recente). O array do server é mais recente primeiro. */
+  const historyOldestFirst = useMemo(() => [...history].reverse(), [history]);
 
   useEffect(() => {
     if (roundsHistoryOpen) setHistoryModalPage(0);
@@ -67,6 +71,12 @@ export function CrashGame() {
     const maxPage = Math.max(0, Math.ceil(history.length / CRASH_HISTORY_MODAL_PAGE_SIZE) - 1);
     setHistoryModalPage((p) => Math.min(p, maxPage));
   }, [history.length]);
+
+  useEffect(() => {
+    const el = historyStripRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [historyOldestFirst]);
 
   const totalBets = useMemo(() => {
     return players.reduce((acc, p) => acc + p.bet, 0);
@@ -322,24 +332,25 @@ export function CrashGame() {
           {/* Visualizador — histórico no topo no mobile (referência Blaze) */}
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-blaze-panel lg:min-h-[640px] lg:bg-tuao-dark-900">
             <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2.5 lg:bg-tuao-dark-950/50">
-              <div className="relative min-h-[38px] min-w-0 overflow-hidden pr-10">
+              <div className="flex min-h-8 min-w-0 items-center gap-1.5">
                 <div
+                  ref={historyStripRef}
                   className={cn(
-                    'max-w-full overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]',
+                    'min-h-8 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:thin]',
                     '[scrollbar-color:rgba(42,42,42,1)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tuao-dark-600'
                   )}
                 >
-                  {history.length === 0 ? (
-                    <span className="inline-block py-2 text-xs text-tuao-dark-700">
+                  {historyOldestFirst.length === 0 ? (
+                    <span className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
                       Ainda sem histórico nesta sessão.
                     </span>
                   ) : (
-                    <div className="inline-flex min-h-[30px] w-max max-w-none items-center gap-2 pr-1">
-                      {history.map((val, i) => (
+                    <div className="inline-flex h-8 w-max max-w-none items-center gap-2">
+                      {historyOldestFirst.map((val, i) => (
                         <div
-                          key={i}
+                          key={`${val}-${i}`}
                           className={cn(
-                            'min-w-[50px] shrink-0 rounded-md border px-3 py-1 text-center font-mono text-xs font-bold transition-all hover:opacity-80',
+                            'flex h-8 min-w-[50px] shrink-0 items-center justify-center rounded-md border px-3 text-center font-mono text-xs font-bold transition-all hover:opacity-80',
                             val >= 2.0
                               ? 'border-transparent bg-blaze-green font-extrabold text-[#0a1620]'
                               : 'border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary'
@@ -355,8 +366,8 @@ export function CrashGame() {
                   type="button"
                   onClick={() => setRoundsHistoryOpen(true)}
                   className={cn(
-                    'absolute right-0 top-1/2 z-[1] flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-tuao-dark-700 text-tuao-text-secondary shadow-[-10px_0_14px_rgba(15,25,35,0.97)] transition-colors',
-                    'bg-blaze-panel hover:border-tuao-primary/40 hover:text-tuao-primary lg:bg-[#0c1218] lg:shadow-[-10px_0_14px_#0c1218]'
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 text-tuao-text-secondary transition-colors',
+                    'bg-blaze-panel hover:border-tuao-primary/40 hover:text-tuao-primary lg:bg-[#0c1218]'
                   )}
                   title="Ver histórico de rondas"
                   aria-label="Ver histórico de rondas"
