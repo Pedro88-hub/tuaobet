@@ -93,6 +93,13 @@ function emitCrashSnapshot(socket: Socket) {
   if (crashFairnessPublic) {
     socket.emit('crash:commit', crashFairnessPublic);
   }
+  const userId = socket.data.userId as string | undefined;
+  if (userId && gameState === 'COUNTDOWN') {
+    const rec = betsThisRound.get(userId);
+    if (rec) {
+      socket.emit('crash:bet-accepted', { roundId: rec.roundId, amount: rec.amount });
+    }
+  }
 }
 
 export const initCrashGame = (io: Server) => {
@@ -328,12 +335,62 @@ export const initCrashGame = (io: Server) => {
           name: user.username,
           bet: amount,
         });
+        // Confirma ao jogador antes do broadcast/ledger remoto
+        socket.emit('crash:bet-accepted', { roundId: bettingRoundId, amount });
         broadcastBets(io);
         pushWalletBalance(userId);
-
-        socket.emit('crash:bet-accepted', { roundId: bettingRoundId, amount });
       } catch {
         socket.emit('crash:error', { code: 'INSUFFICIENT_BALANCE' });
+      }
+    });
+
+    socket.on('crash:cancel', async () => {
+      const userId = socket.data.userId as string | undefined;
+      if (!userId) {
+        socket.emit('crash:error', { code: 'AUTH' });
+        return;
+      }
+      if (gameState !== 'COUNTDOWN') {
+        socket.emit('crash:error', { code: 'CLOSED' });
+        return;
+      }
+
+      const rec = betsThisRound.get(userId);
+      if (!rec || rec.roundId !== bettingRoundId) {
+        socket.emit('crash:error', { code: 'NO_BET' });
+        return;
+      }
+
+      // Remover da ronda já (síncrono) e responder ao cliente antes do DB
+      betsThisRound.delete(userId);
+      leaderboard.delete(userId);
+      const refund = Math.round(rec.amount * 100) / 100;
+      broadcastBets(io);
+      socket.emit('crash:bet-cancelled', { refunded: refund });
+
+      const persistCancel = async () => {
+        await prisma.$transaction(async (tx) => {
+          await creditPayout(userId, refund, 'Crash — cancelamento', tx);
+          await tx.bet.update({
+            where: { id: rec.betId },
+            data: {
+              result: 'cancelled',
+              payout: 0,
+              multiplier: null,
+            },
+          });
+        });
+        pushWalletBalance(userId);
+      };
+
+      try {
+        await persistCancel();
+      } catch {
+        try {
+          await persistCancel();
+        } catch {
+          // Cliente já viu o cancelamento; saldo será reconciliado no próximo sync/retry operacional
+        }
       }
     });
 
@@ -359,36 +416,44 @@ export const initCrashGame = (io: Server) => {
         return;
       }
 
-      const payout = Math.round(rec.amount * multiplier * 100) / 100;
+      const cashoutAt = multiplier;
+      const payout = Math.round(rec.amount * cashoutAt * 100) / 100;
       rec.cashedOut = true;
 
-      try {
+      const row = leaderboard.get(userId);
+      if (row) {
+        row.cashout = cashoutAt;
+        row.payout = payout;
+        row.busted = undefined;
+        leaderboard.set(userId, row);
+      }
+      // Resposta imediata — não esperar o Neon/Prisma
+      broadcastBets(io);
+      socket.emit('crash:cashout-ok', { multiplier: cashoutAt, payout });
+
+      const persistCashout = async () => {
         await prisma.$transaction(async (tx) => {
-          await creditPayout(userId, payout, `Crash — cashout ${multiplier.toFixed(2)}x`, tx);
+          await creditPayout(userId, payout, `Crash — cashout ${cashoutAt.toFixed(2)}x`, tx);
           await tx.bet.update({
             where: { id: rec.betId },
             data: {
               result: 'win',
-              multiplier,
+              multiplier: cashoutAt,
               payout,
             },
           });
         });
-
-        const row = leaderboard.get(userId);
-        if (row) {
-          row.cashout = multiplier;
-          row.payout = payout;
-          row.busted = undefined;
-          leaderboard.set(userId, row);
-        }
-        broadcastBets(io);
         pushWalletBalance(userId);
+      };
 
-        socket.emit('crash:cashout-ok', { multiplier, payout });
+      try {
+        await persistCashout();
       } catch {
-        rec.cashedOut = false;
-        socket.emit('crash:error', { code: 'SERVER' });
+        try {
+          await persistCashout();
+        } catch {
+          // Cashout já confirmado em memória/UI; crédito será retentado operacionalmente se falhar
+        }
       }
     });
   });

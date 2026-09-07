@@ -47,6 +47,7 @@ export function CrashGame() {
     fairnessCommit,
     fairnessReveal,
     joinGame,
+    cancelBet,
     cashout,
   } = useCrashGame();
 
@@ -78,7 +79,11 @@ export function CrashGame() {
       return;
     }
     const amount = parseFloat(betAmount.trim() || '');
-    if ((gameState === 'IDLE' || gameState === 'COUNTDOWN') && !hasServerBet) {
+    if (gameState === 'COUNTDOWN' && hasServerBet) {
+      cancelBet();
+      return;
+    }
+    if (gameState === 'COUNTDOWN' && !hasServerBet) {
       if (!Number.isFinite(amount) || amount <= 0) return;
       joinGame(amount);
       return;
@@ -237,22 +242,26 @@ export function CrashGame() {
                       'h-12 w-full text-sm font-black uppercase tracking-wider',
                       gameState === 'RUNNING' && hasServerBet && !serverCashedOut
                         ? 'border border-emerald-500/35 bg-emerald-600 text-white hover:bg-emerald-500'
-                        : hasServerBet && (gameState === 'IDLE' || gameState === 'COUNTDOWN')
+                        : hasServerBet && gameState === 'COUNTDOWN'
                           ? 'border border-red-500/40 bg-red-500/90 text-white hover:bg-red-600'
                           : 'border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover'
                     )}
                     onClick={handleBetAction}
-                    disabled={gameState === 'CRASHED' || (hasServerBet && serverCashedOut)}
+                    disabled={
+                      gameState === 'CRASHED' ||
+                      gameState === 'IDLE' ||
+                      (hasServerBet && serverCashedOut)
+                    }
                   >
-                    {gameState === 'IDLE' || gameState === 'COUNTDOWN' ? (
+                    {gameState === 'COUNTDOWN' ? (
                       hasServerBet ? (
-                        'Aguardando…'
+                        'Cancelar'
                       ) : (
-                        'Começar o jogo'
+                        'Apostar'
                       )
                     ) : gameState === 'RUNNING' && hasServerBet && !serverCashedOut ? (
                       <span className="flex flex-col items-center leading-tight">
-                        <span>Retirar</span>
+                        <span>Sacar</span>
                         <span className="text-[11px] font-bold tabular-nums opacity-90">
                           R${' '}
                           {(
@@ -261,6 +270,8 @@ export function CrashGame() {
                         </span>
                       </span>
                     ) : gameState === 'RUNNING' ? (
+                      'Esperando…'
+                    ) : gameState === 'IDLE' ? (
                       'Esperando…'
                     ) : (
                       'Rodada encerrada'

@@ -201,7 +201,7 @@ export function MinesGame() {
         onClick={cashout}
       >
         <span className="flex flex-col items-center leading-tight">
-          <span>Retirar</span>
+          <span>Sacar</span>
           <span className="text-[10px] font-bold tabular-nums opacity-90 sm:text-[11px]">
             R$ {totalWin.toFixed(2)}
           </span>
