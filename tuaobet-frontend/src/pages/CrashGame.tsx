@@ -43,6 +43,7 @@ export function CrashGame() {
     hasServerBet,
     serverCashedOut,
     serverPayout,
+    serverBetAmount,
     lastError,
     fairnessCommit,
     fairnessReveal,
@@ -255,7 +256,19 @@ export function CrashGame() {
                   >
                     {gameState === 'COUNTDOWN' ? (
                       hasServerBet ? (
-                        'Cancelar'
+                        <span className="flex flex-col items-center leading-tight">
+                          <span>Cancelar</span>
+                          <span className="text-[11px] font-bold tabular-nums opacity-90">
+                            R${' '}
+                            {(
+                              serverBetAmount > 0
+                                ? serverBetAmount
+                                : Number.isFinite(parseFloat(betAmount))
+                                  ? parseFloat(betAmount)
+                                  : 0
+                            ).toFixed(2)}
+                          </span>
+                        </span>
                       ) : (
                         'Apostar'
                       )

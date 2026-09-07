@@ -275,6 +275,7 @@ export function useCrashGame() {
     hasServerBet,
     serverCashedOut,
     serverPayout,
+    serverBetAmount,
     lastError,
     fairnessCommit,
     fairnessReveal,
