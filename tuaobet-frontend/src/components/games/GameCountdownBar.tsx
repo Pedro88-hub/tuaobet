@@ -35,7 +35,7 @@ export function GameCountdownBar({
   return (
     <div
       className={cn(
-        'relative w-full min-h-10 h-10 rounded-full overflow-hidden',
+        'relative w-full min-h-7 h-7 rounded-md overflow-hidden',
         'bg-tuao-dark-950 border border-tuao-dark-700',
         'shadow-[inset_0_2px_4px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,240,255,0.12)]',
         'before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:z-[1]',
@@ -51,7 +51,7 @@ export function GameCountdownBar({
     >
       <div
         className={cn(
-          'absolute inset-y-0 left-0 h-full rounded-full overflow-hidden z-[1]',
+          'absolute inset-y-0 left-0 z-[1] h-full overflow-hidden rounded-md',
           'bg-gradient-to-r from-tuao-primary/85 via-tuao-primary to-tuao-primary-hover/95',
           'shadow-[0_0_24px_rgba(0,240,255,0.35),inset_0_1px_0_rgba(255,255,255,0.25)]',
           'transition-none',
@@ -62,10 +62,10 @@ export function GameCountdownBar({
           minWidth: fillMinWidth,
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center px-3 text-center z-[2] pointer-events-none">
+      <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center px-2 text-center">
         <span
           className={cn(
-            'text-sm font-bold text-white tabular-nums tracking-tight',
+            'text-xs font-bold tabular-nums tracking-tight text-white',
             'drop-shadow-[0_1px_2px_rgba(0,0,0,0.95),0_0_12px_rgba(0,0,0,0.5)]',
             labelClassName
           )}

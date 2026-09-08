@@ -456,7 +456,7 @@ export function DoubleGame() {
                   Girando em {timeLeft.toFixed(2)}s
                 </GameCountdownBar>
               ) : (
-                <div className="mx-auto flex h-10 w-full max-w-xl items-center justify-center rounded-full border border-tuao-dark-800 bg-[#1a242d]/90 lg:bg-tuao-dark-950/80">
+                <div className="mx-auto flex h-7 w-full max-w-xl items-center justify-center rounded-md border border-tuao-dark-800 bg-[#1a242d]/90 lg:bg-tuao-dark-950/80">
                   <span className="text-xs font-bold uppercase tracking-wider text-tuao-text-secondary">
                     {gameState === 'SPINNING'
                       ? 'A girar…'

@@ -59,6 +59,21 @@ export function CrashGame() {
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
   const [historyModalPage, setHistoryModalPage] = useState(0);
 
+  // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
+  const [timeLeft, setTimeLeft] = useState(countdown);
+
+  useEffect(() => {
+    setTimeLeft(countdown);
+  }, [countdown]);
+
+  useEffect(() => {
+    if (gameState !== 'COUNTDOWN') return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 0.02));
+    }, 20);
+    return () => clearInterval(interval);
+  }, [gameState]);
+
   useEffect(() => {
     if (roundsHistoryOpen) setHistoryModalPage(0);
   }, [roundsHistoryOpen]);
@@ -217,14 +232,16 @@ export function CrashGame() {
                   ))}
                 </div>
 
-                <div className="flex items-stretch gap-2">
-                    <Input
-                      value={autoCashout}
-                      onChange={(e) => setAutoCashout(e.target.value)}
-                      placeholder="Auto retirar (multiplicador)"
-                      aria-label="Auto retirar (multiplicador)"
-                      className="h-12 min-w-0 flex-1 border-tuao-dark-700 bg-[#1a242d] text-base font-bold placeholder:text-xs placeholder:font-semibold focus:border-tuao-primary sm:placeholder:text-sm lg:bg-tuao-dark-950"
-                    />
+                <div className="flex w-full items-stretch gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        value={autoCashout}
+                        onChange={(e) => setAutoCashout(e.target.value)}
+                        placeholder="Auto retirar (multiplicador)"
+                        aria-label="Auto retirar (multiplicador)"
+                        className="h-12 w-full border-tuao-dark-700 bg-[#1a242d] text-base font-bold placeholder:text-xs placeholder:font-semibold focus:border-tuao-primary sm:placeholder:text-sm lg:bg-tuao-dark-950"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => setAutoCashout('')}
@@ -325,10 +342,7 @@ export function CrashGame() {
               <div className="flex min-h-8 min-w-0 items-center gap-1.5">
                 <div
                   dir="rtl"
-                  className={cn(
-                    'min-h-8 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:thin]',
-                    '[scrollbar-color:rgba(42,42,42,1)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tuao-dark-600'
-                  )}
+                  className="min-h-8 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
                   {history.length === 0 ? (
                     <span dir="ltr" className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
@@ -380,37 +394,37 @@ export function CrashGame() {
 
               {gameState === 'COUNTDOWN' && (
                 <div className="pointer-events-none absolute inset-0 z-[30] flex items-center justify-center px-4">
-                  <div className="w-full max-w-md shadow-[0_0_28px_rgba(0,240,255,0.1)]">
+                  <div className="w-full max-w-xs shadow-[0_0_20px_rgba(0,240,255,0.08)] sm:max-w-sm">
                     <GameCountdownBar
                       progress={
                         CRASH_COUNTDOWN_SECONDS > 0
-                          ? Math.min(1, Math.max(0, countdown) / CRASH_COUNTDOWN_SECONDS)
+                          ? Math.min(1, Math.max(0, timeLeft) / CRASH_COUNTDOWN_SECONDS)
                           : 0
                       }
-                      fillClassName="transition-[width] duration-1000 ease-linear"
-                      className="w-full"
+                      className="h-6 min-h-6 w-full rounded-md"
+                      labelClassName="text-xs"
                     >
-                      {countdown > 0 ? `Começando em ${countdown}s` : 'A iniciar…'}
+                      {timeLeft > 0 ? `Começando em ${timeLeft.toFixed(2)}s` : 'A iniciar…'}
                     </GameCountdownBar>
                   </div>
                 </div>
               )}
 
-              <div className="relative z-10 mb-8 flex w-full max-w-lg flex-col items-center justify-center gap-3 px-3 text-center lg:mb-12">
+              <div className="pointer-events-none absolute left-1/2 top-3 z-10 flex w-full max-w-[11rem] -translate-x-1/2 flex-col items-center px-2 text-center sm:top-4 sm:max-w-[13rem]">
                 {gameState !== 'COUNTDOWN' && gameState === 'CRASHED' && (
-                  <div className="rounded-lg bg-gradient-to-br from-red-600 to-rose-800 px-10 py-5 shadow-[0_12px_40px_rgba(220,38,38,0.45)] ring-1 ring-red-500/30 sm:px-12 sm:py-6">
-                    <div className="text-4xl font-black tabular-nums tracking-tight text-white sm:text-5xl md:text-6xl">
+                  <div className="rounded-md bg-gradient-to-br from-red-600 to-rose-800 px-4 py-2 shadow-[0_8px_24px_rgba(220,38,38,0.4)] ring-1 ring-red-500/30 sm:px-5 sm:py-2.5">
+                    <div className="text-2xl font-black tabular-nums tracking-tight text-white sm:text-3xl">
                       {multiplier.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}X
                     </div>
-                    <div className="mt-1 text-center text-[11px] font-black uppercase tracking-[0.28em] text-white/90">
+                    <div className="mt-0.5 text-center text-[9px] font-black uppercase tracking-[0.22em] text-white/90">
                       CRASHED
                     </div>
                     {serverCashedOut && (
-                      <div className="mt-4 border-t border-white/25 pt-4 text-center animate-in fade-in duration-300">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-200">
+                      <div className="mt-2 border-t border-white/25 pt-2 text-center animate-in fade-in duration-300">
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-200">
                           Ganhaste
                         </span>
-                        <span className="mt-1 block text-xl font-bold tabular-nums text-white sm:text-2xl">
+                        <span className="mt-0.5 block text-sm font-bold tabular-nums text-white sm:text-base">
                           R$ {serverPayout.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
@@ -419,21 +433,21 @@ export function CrashGame() {
                 )}
 
                 {gameState !== 'COUNTDOWN' && gameState !== 'CRASHED' && (
-                  <div className="flex flex-col items-center rounded-xl border border-tuao-dark-700 bg-tuao-dark-800/95 px-6 py-4 shadow-inner transition-all duration-75 sm:px-8 sm:py-5">
+                  <div className="flex flex-col items-center rounded-md border border-tuao-dark-700 bg-tuao-dark-800/90 px-3 py-1.5 shadow-inner transition-all duration-75 sm:px-4 sm:py-2">
                     <div
                       className={cn(
-                        'font-mono text-6xl font-black tabular-nums tracking-tighter sm:text-7xl md:text-8xl',
+                        'font-mono text-3xl font-black tabular-nums tracking-tighter sm:text-4xl',
                         gameState === 'RUNNING' ? 'text-white' : 'text-tuao-text-secondary'
                       )}
                     >
                       {`${(gameState === 'RUNNING' ? displayMultiplier : multiplier).toFixed(2)}x`}
                     </div>
                     {serverCashedOut && (
-                      <div className="mt-3 w-full max-w-[min(100%,16rem)] border-t border-white/10 pt-3 text-center animate-in fade-in duration-300">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                      <div className="mt-1.5 w-full border-t border-white/10 pt-1.5 text-center animate-in fade-in duration-300">
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-400">
                           Ganhaste
                         </span>
-                        <span className="mt-1 block text-lg font-bold tabular-nums text-emerald-300 sm:text-xl">
+                        <span className="mt-0.5 block text-sm font-bold tabular-nums text-emerald-300 sm:text-base">
                           R$ {serverPayout.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
