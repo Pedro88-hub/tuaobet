@@ -36,6 +36,16 @@ export interface BaccaratLiveBet {
 }
 
 export const BACCARAT_CHIP_VALUES = [1, 5, 25, 100] as const;
+export const BACCARAT_BETTING_SECONDS = 10;
+
+/** Odds de display alinhadas ao payout do motor (stake incluído no cálculo server-side). */
+export const BACCARAT_ODDS = {
+  player: '1 : 1',
+  banker: '0.95 : 1',
+  tie: '9 : 1',
+} as const;
+
+const EMPTY_STACKS: BetStacks = { player: 0, banker: 0, tie: 0 };
 
 const ERROR_MAP: Record<string, string> = {
   AUTH: 'Faça login para apostar.',
@@ -52,16 +62,19 @@ export type BaccaratPhase = 'BETTING' | 'DEALING' | 'RESULT';
 
 export function useBaccaratGame() {
   const [gamePhase, setGamePhase] = useState<BaccaratPhase>('BETTING');
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(BACCARAT_BETTING_SECONDS);
   const [roundData, setRoundData] = useState<BaccaratDealData | null>(null);
   const [history, setHistory] = useState<BaccaratHistoryCell[]>([]);
   const [liveBets, setLiveBets] = useState<BaccaratLiveBet[]>([]);
 
   const [selectedChip, setSelectedChip] = useState<number>(5);
-  const [stacks, setStacks] = useState<BetStacks>({ player: 0, banker: 0, tie: 0 });
+  const [stacks, setStacks] = useState<BetStacks>(EMPTY_STACKS);
+  const [acceptedBets, setAcceptedBets] = useState<BetStacks | null>(null);
   const [betPlaced, setBetPlaced] = useState(false);
   const [personalPayout, setPersonalPayout] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const stacksRef = useRef(stacks);
+  stacksRef.current = stacks;
 
   useEffect(() => {
     const socket = getSocket();
@@ -75,8 +88,10 @@ export function useBaccaratGame() {
       if (data.state === 'BETTING') {
         setRoundData(null);
         setBetPlaced(false);
+        setAcceptedBets(null);
         setPersonalPayout(null);
         setError(null);
+        setStacks(EMPTY_STACKS);
       }
     };
 
@@ -101,9 +116,10 @@ export function useBaccaratGame() {
     const onNewBet = (data: BaccaratLiveBet) =>
       setLiveBets((prev) => [...prev, data]);
 
-    const onBetAccepted = () => {
+    const onBetAccepted = (data?: { bets?: BetStacks; totalStake?: number }) => {
       setBetPlaced(true);
-      setStacks({ player: 0, banker: 0, tie: 0 });
+      setAcceptedBets(data?.bets ?? { ...stacksRef.current });
+      setStacks(EMPTY_STACKS);
       setError(null);
     };
 
@@ -149,37 +165,44 @@ export function useBaccaratGame() {
   const totalWagered =
     Math.round((stacks.player + stacks.banker + stacks.tie) * 100) / 100;
 
+  const acceptedTotal = acceptedBets
+    ? Math.round(
+        (acceptedBets.player + acceptedBets.banker + acceptedBets.tie) * 100
+      ) / 100
+    : 0;
+
   const addChip = useCallback(
     (zone: keyof BetStacks) => {
       setStacks((s) => ({
         ...s,
         [zone]: Math.round((s[zone] + selectedChip) * 100) / 100,
       }));
+      setError(null);
     },
     [selectedChip]
   );
 
   const clearStacks = useCallback(() => {
-    setStacks({ player: 0, banker: 0, tie: 0 });
+    setStacks(EMPTY_STACKS);
   }, []);
+
+  const clearError = useCallback(() => setError(null), []);
 
   const placeBet = useCallback(() => {
     if (totalWagered <= 0) {
-      setError('Coloque fichas em Player, Banker ou Tie');
+      setError('Coloque fichas em Jogador, Empate ou Banca');
+      return;
+    }
+    if (gamePhase !== 'BETTING' || betPlaced) {
+      setError(ERROR_MAP.CLOSED);
       return;
     }
     setError(null);
     getSocket().emit('baccarat:bet', { bets: stacks });
-  }, [stacks, totalWagered]);
+  }, [stacks, totalWagered, gamePhase, betPlaced]);
 
-  const placeBetRef = useRef(placeBet);
-  placeBetRef.current = placeBet;
-
-  useEffect(() => {
-    if (betPlaced || totalWagered <= 0) return;
-    const id = window.setTimeout(() => placeBetRef.current(), 450);
-    return () => window.clearTimeout(id);
-  }, [stacks, betPlaced, totalWagered]);
+  const canPlaceBet =
+    gamePhase === 'BETTING' && !betPlaced && totalWagered > 0;
 
   return {
     gamePhase,
@@ -190,12 +213,16 @@ export function useBaccaratGame() {
     selectedChip,
     setSelectedChip,
     stacks,
+    acceptedBets,
+    acceptedTotal,
     addChip,
     clearStacks,
     totalWagered,
     betPlaced,
     personalPayout,
     error,
+    clearError,
     placeBet,
+    canPlaceBet,
   };
 }
