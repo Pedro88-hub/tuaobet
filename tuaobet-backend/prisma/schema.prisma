@@ -138,3 +138,13 @@ model Transaction {
   
   createdAt   DateTime @default(now())
 }
+
+// Resultado de ronda Crash (histórico da UI; sobrevive a cold start).
+model CrashRoundResult {
+  id         String   @id @default(uuid())
+  crashPoint Float
+  roundId    Int?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}

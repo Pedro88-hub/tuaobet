@@ -14,8 +14,8 @@ import {
 } from './crashSimulator';
 import { randInt } from '../simulator/simulatorCommon';
 
-/** Quantidade máxima de rondas guardadas em memória (histórico no cliente / modal paginado). */
-const CRASH_HISTORY_MAX = 100;
+/** Quantidade máxima de rondas no histórico (memória + Postgres). */
+const CRASH_HISTORY_MAX = 400;
 
 type GameState = 'IDLE' | 'COUNTDOWN' | 'RUNNING' | 'CRASHED';
 
@@ -77,6 +77,32 @@ function displayLeaderboardForClients(): LeaderRow[] {
 
 function broadcastBets(io: Server) {
   io.emit('crash:bets', displayLeaderboardForClients());
+}
+
+async function loadCrashHistoryFromDb(): Promise<number[]> {
+  const rows = await prisma.crashRoundResult.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: CRASH_HISTORY_MAX,
+    select: { crashPoint: true },
+  });
+  return rows.map((r) => r.crashPoint);
+}
+
+async function persistCrashResult(crashPointValue: number, roundId: number): Promise<void> {
+  await prisma.crashRoundResult.create({
+    data: { crashPoint: crashPointValue, roundId },
+  });
+
+  const keep = await prisma.crashRoundResult.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: CRASH_HISTORY_MAX,
+    select: { id: true },
+  });
+  if (keep.length < CRASH_HISTORY_MAX) return;
+
+  await prisma.crashRoundResult.deleteMany({
+    where: { id: { notIn: keep.map((r) => r.id) } },
+  });
 }
 
 function emitCrashSnapshot(socket: Socket) {
@@ -216,6 +242,8 @@ export const initCrashGame = (io: Server) => {
 
         const secret = crashRoundSecret;
         const pub = crashFairnessPublic;
+        const explodedPoint = crashPoint;
+        const explodedRoundId = runningRoundId;
 
         void (async () => {
           try {
@@ -223,12 +251,17 @@ export const initCrashGame = (io: Server) => {
           } catch {
             /* continua a mostrar o crash na UI */
           }
+          try {
+            await persistCrashResult(explodedPoint, explodedRoundId);
+          } catch (e) {
+            console.error('[crash] falha ao persistir histórico:', e);
+          }
           io.emit('crash:exploded', {
-            crashPoint,
+            crashPoint: explodedPoint,
             history: crashHistory,
-            roundId: runningRoundId,
-            serverSeed: secret?.roundId === runningRoundId ? secret.serverSeed : undefined,
-            serverSeedHash: pub?.roundId === runningRoundId ? pub.serverSeedHash : undefined,
+            roundId: explodedRoundId,
+            serverSeed: secret?.roundId === explodedRoundId ? secret.serverSeed : undefined,
+            serverSeedHash: pub?.roundId === explodedRoundId ? pub.serverSeedHash : undefined,
           });
           setTimeout(() => gameLoop(), 6000);
         })();
@@ -458,5 +491,14 @@ export const initCrashGame = (io: Server) => {
     });
   });
 
-  gameLoop();
+  void (async () => {
+    try {
+      crashHistory = await loadCrashHistoryFromDb();
+      console.log(`[crash] histórico carregado: ${crashHistory.length} rondas`);
+    } catch (e) {
+      console.error('[crash] falha ao carregar histórico:', e);
+      crashHistory = [];
+    }
+    gameLoop();
+  })();
 };

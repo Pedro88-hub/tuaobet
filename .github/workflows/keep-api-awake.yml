@@ -1,0 +1,23 @@
+# Mantém a API no Render free acordada (sleep ~15 min sem tráfego).
+# Se o secret API_HEALTH_URL não existir, usa a URL pública por omissão.
+name: Keep API awake
+
+on:
+  schedule:
+    # A cada 12 minutos (margem abaixo dos ~15 min de idle do Render free)
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          URL="${{ secrets.API_HEALTH_URL }}"
+          if [ -z "$URL" ]; then
+            URL="https://tuaobet.onrender.com/health"
+          fi
+          echo "GET $URL"
+          curl -fsS --retry 2 --retry-delay 5 --max-time 90 "$URL"
+          echo
