@@ -410,7 +410,7 @@ export function CrashGame() {
                 </div>
               )}
 
-              <div className="pointer-events-none absolute left-1/2 top-3 z-10 flex w-full max-w-[11rem] -translate-x-1/2 flex-col items-center px-2 text-center sm:top-4 sm:max-w-[13rem]">
+              <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex w-full max-w-[11rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-2 text-center sm:max-w-[13rem]">
                 {gameState !== 'COUNTDOWN' && gameState === 'CRASHED' && (
                   <div className="rounded-md bg-gradient-to-br from-red-600 to-rose-800 px-4 py-2 shadow-[0_8px_24px_rgba(220,38,38,0.4)] ring-1 ring-red-500/30 sm:px-5 sm:py-2.5">
                     <div className="text-2xl font-black tabular-nums tracking-tight text-white sm:text-3xl">
