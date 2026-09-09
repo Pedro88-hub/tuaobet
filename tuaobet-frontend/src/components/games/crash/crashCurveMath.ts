@@ -105,17 +105,29 @@ function timeToX(t: number, tStart: number, tSpan: number): number {
   return clamp01(((t - tStart) / tSpan) * 100);
 }
 
-function buildTimeAxisTicks(tStart: number, tNow: number, tSpan: number): CrashTimeTick[] {
-  const n = 5;
-  if (tNow - tStart < 1e-6) {
-    return [{ sec: tStart, leftPct: plotX(50) }];
-  }
+/** Espaçamento “bonito” do eixo X — escala fixa na janela, como os multiplicadores no Y. */
+function pickTimeAxisStep(tSpan: number): number {
+  if (tSpan <= 10) return 2;
+  if (tSpan <= 20) return 5;
+  if (tSpan <= 40) return 10;
+  return 20;
+}
+
+/**
+ * Marcas de tempo na janela completa [tStart, tStart+tSpan], não só até tNow —
+ * assim o eixo não “abre” à medida que o voo avança (igual à grelha Y).
+ */
+function buildTimeAxisTicks(tStart: number, tSpan: number): CrashTimeTick[] {
+  const span = Math.max(tSpan, 1e-6);
+  const tEnd = tStart + span;
+  const step = pickTimeAxisStep(span);
   const ticks: CrashTimeTick[] = [];
-  for (let j = 0; j < n; j++) {
-    const sec = tStart + (tNow - tStart) * (j / (n - 1));
-    ticks.push({ sec, leftPct: plotX(timeToX(sec, tStart, tSpan)) });
+
+  let sec = tStart <= 0 ? 0 : Math.ceil((tStart - 1e-9) / step) * step;
+  for (; sec <= tEnd + 1e-6; sec += step) {
+    ticks.push({ sec, leftPct: plotX(timeToX(sec, tStart, span)) });
   }
-  return ticks;
+  return ticks.length > 0 ? ticks : [{ sec: tStart, leftPct: plotX(0) }];
 }
 
 /**
@@ -154,7 +166,7 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
       planeBottomPct: plotBottom(0),
       planeAngleDeg: 0,
       gridLines: buildGridLines(maxY),
-      timeAxisTicks: buildTimeAxisTicks(0, 0, 1),
+      timeAxisTicks: buildTimeAxisTicks(0, MIN_SPAN_EARLY_SEC),
     };
   }
 
@@ -176,6 +188,6 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
     planeBottomPct: plotBottom(rawBottomTip),
     planeAngleDeg: computePlaneAngleDeg(pts),
     gridLines: buildGridLines(maxY),
-    timeAxisTicks: buildTimeAxisTicks(tStart, tNow, tSpan),
+    timeAxisTicks: buildTimeAxisTicks(tStart, tSpan),
   };
 }

@@ -8,8 +8,10 @@ type Props = {
 
 function formatAxisSeconds(sec: number): string {
   if (sec <= 0) return '0s';
+  const rounded = Math.round(sec);
+  if (Math.abs(sec - rounded) < 1e-6) return `${rounded}s`;
   if (sec < 12) return `${sec.toFixed(1)}s`;
-  return `${Math.round(sec)}s`;
+  return `${rounded}s`;
 }
 
 /**
