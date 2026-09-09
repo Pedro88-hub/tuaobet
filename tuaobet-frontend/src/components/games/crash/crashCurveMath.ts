@@ -45,10 +45,40 @@ export type CrashCurveResult = {
   areaD: string;
   planeLeftPct: number;
   planeBottomPct: number;
+  /** Inclinação CSS do avião (graus; positivo = horário). */
+  planeAngleDeg: number;
   gridLines: CrashGridLine[];
   timeAxisTicks: CrashTimeTick[];
   verticalTimeLines: CrashVerticalLine[];
 };
+
+/**
+ * Oscilação de altitude só no visual (% do plot). Determinística em t (segundos de voo).
+ * Envelope: arranca no chão, pico na decolagem (~1–2 s), depois cruzeiro mais suave.
+ */
+function flightAltitudeOffset(t: number): number {
+  if (t <= 0) return 0;
+  const takeoff = 1 - Math.exp(-t * 1.15);
+  const cruiseBlend = Math.exp(-Math.max(0, t - 2.2) * 0.38);
+  const envelope = takeoff * (0.42 + 0.58 * cruiseBlend);
+  const slow = Math.sin(t * 2.05);
+  const fast = Math.sin(t * 4.7 + 0.6);
+  return envelope * (2.55 * slow + 1.05 * fast);
+}
+
+/** Tangente da trilha no espaço do gráfico (Y SVG para baixo; chart costuma ser mais largo que alto). */
+function computePlaneAngleDeg(pts: { x: number; y: number }[]): number {
+  if (pts.length < 2) return 0;
+  const lookback = Math.min(10, pts.length - 1);
+  const a = pts[pts.length - 1 - lookback];
+  const b = pts[pts.length - 1];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (dx * dx + dy * dy < 1e-8) return 0;
+  const climbDeg = (Math.atan2(-dy, dx * 2) * 180) / Math.PI;
+  // Sprite já aponta ~14° para cima; positivo CSS = horário (nariz mais baixo na decolagem).
+  return Math.max(-30, Math.min(12, 14 - climbDeg));
+}
 
 function buildGridLines(maxY: number): CrashGridLine[] {
   const lines: CrashGridLine[] = [];
@@ -128,7 +158,7 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
     const t = tSample0 + (tNow - tSample0) * u;
     const mi = mAt(t);
     const rawX = timeToX(t, tStart, tSpan);
-    const rawBottom = ((mi - 1) / (maxY - 1)) * 100;
+    const rawBottom = ((mi - 1) / (maxY - 1)) * 100 + flightAltitudeOffset(t);
     pts.push({ x: plotX(rawX), y: plotSvgY(rawBottom) });
   }
 
@@ -138,6 +168,7 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
       areaD: `M ${plotX(0)} ${plotSvgY(0)} L ${plotX(0)} ${plotSvgY(0)} Z`,
       planeLeftPct: plotX(0),
       planeBottomPct: plotBottom(0),
+      planeAngleDeg: 0,
       gridLines: buildGridLines(maxY),
       timeAxisTicks: buildTimeAxisTicks(0, 0, 1),
       verticalTimeLines: [],
@@ -153,13 +184,14 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
   const floorY = 100 - PLOT_PAD_Y;
   const areaD = `${pathD} L ${last.x} ${floorY} L ${pts[0].x} ${floorY} Z`;
 
-  const rawBottomTip = ((m - 1) / (maxY - 1)) * 100;
+  const rawBottomTip = ((m - 1) / (maxY - 1)) * 100 + flightAltitudeOffset(tNow);
 
   return {
     pathD,
     areaD,
     planeLeftPct: last.x,
     planeBottomPct: plotBottom(rawBottomTip),
+    planeAngleDeg: computePlaneAngleDeg(pts),
     gridLines: buildGridLines(maxY),
     timeAxisTicks: buildTimeAxisTicks(tStart, tNow, tSpan),
     verticalTimeLines: buildVerticalTimeLines(tStart, tNow, tSpan),

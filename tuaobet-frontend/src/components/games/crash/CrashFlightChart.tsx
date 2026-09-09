@@ -101,7 +101,7 @@ export function CrashFlightChart({ multiplier }: Props) {
           style={{
             left: `${curve.planeLeftPct}%`,
             bottom: `${curve.planeBottomPct}%`,
-            transform: 'translate(-50%, 50%)',
+            transform: `translate(-50%, 50%) rotate(${curve.planeAngleDeg}deg)`,
           }}
         >
           <CrashTuaoLogoMark />
