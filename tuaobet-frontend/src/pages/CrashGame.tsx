@@ -218,20 +218,6 @@ export function CrashGame() {
                   </button>
                 </div>
 
-                <div className="hidden grid-cols-4 gap-2 lg:grid">
-                  {[10, 20, 50, 100].map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setBetAmount(val.toFixed(2))}
-                      disabled={amountDisabled}
-                      className="rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 py-2 text-xs font-bold text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 hover:text-white disabled:opacity-50"
-                    >
-                      +{val}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="flex w-full items-stretch gap-2">
                     <div className="min-w-0 flex-1">
                       <Input

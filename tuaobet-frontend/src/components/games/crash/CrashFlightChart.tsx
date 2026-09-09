@@ -25,7 +25,7 @@ export function CrashFlightChart({ multiplier }: Props) {
 
   return (
     <div className="pointer-events-none absolute inset-0 h-full w-full overflow-hidden">
-      <div className="absolute inset-2 min-h-0 min-w-0 overflow-hidden sm:inset-3 md:inset-4">
+      <div className="absolute inset-2 min-h-0 min-w-0 sm:inset-3 md:inset-4">
         {curve.gridLines.map((line) => (
           <div
             key={line.value}

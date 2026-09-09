@@ -10,17 +10,18 @@ const VIEW_WINDOW_SEC = 14;
 const MIN_SPAN_EARLY_SEC = 8;
 
 /**
- * Margem do plot (%) para o avião (~96px + glow) não ser cortado em voos longos,
- * quando a ponta cola na borda direita (câmara a deslizar).
+ * Margem do plot (%) — direita maior para o nariz do avião (~76–96px) não ser
+ * cortado em voos longos, quando a ponta cola na borda (câmara a deslizar).
  */
-const PLOT_PAD_X = 8;
-const PLOT_PAD_Y = 9;
+const PLOT_PAD_LEFT = 6;
+const PLOT_PAD_RIGHT = 16;
+const PLOT_PAD_Y = 11;
 
 const clamp01 = (v: number) => Math.min(100, Math.max(0, v));
 
-/** Mapeia 0–100 do domínio lógico para a área útil do SVG (com padding). */
+/** Mapeia 0–100 do domínio lógico para a área útil do SVG (padding X assimétrico). */
 function plotX(raw0to100: number): number {
-  return PLOT_PAD_X + (clamp01(raw0to100) / 100) * (100 - 2 * PLOT_PAD_X);
+  return PLOT_PAD_LEFT + (clamp01(raw0to100) / 100) * (100 - PLOT_PAD_LEFT - PLOT_PAD_RIGHT);
 }
 
 /** Y SVG (0 = topo): rawY 0 = multiplicador baixo (fundo), 100 = topo do domínio. */
