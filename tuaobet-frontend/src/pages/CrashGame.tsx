@@ -8,7 +8,12 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { cn } from '../lib/utils';
 import { GameCountdownBar, CRASH_COUNTDOWN_SECONDS } from '../components/games/GameCountdownBar';
-import { BarChart2, ChevronLeft, ChevronRight, Crown, Info, Maximize2, Wifi } from 'lucide-react';
+import { BarChart2, ChevronLeft, ChevronRight, Crown, Info, Maximize2, Volume2, VolumeX, Wifi } from 'lucide-react';
+import {
+  isCrashSoundMuted,
+  onCrashSoundMuteChange,
+  toggleCrashSoundMuted,
+} from '../lib/crashSounds';
 import { ProvablyFairCrashStrip } from '../components/games/ProvablyFairStrip';
 import { CrashFlightChart } from '../components/games/crash/CrashFlightChart';
 import { useCrashDisplayMultiplier } from '../components/games/crash/useCrashDisplayMultiplier';
@@ -70,9 +75,14 @@ export function CrashGame() {
   const [lowerTab, setLowerTab] = useState<'jogadores' | 'descricao'>('jogadores');
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
   const [historyModalPage, setHistoryModalPage] = useState(0);
+  const [soundMuted, setSoundMuted] = useState(() => isCrashSoundMuted());
 
   // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
   const [timeLeft, setTimeLeft] = useState(countdown);
+
+  useEffect(() => {
+    return onCrashSoundMuteChange(setSoundMuted);
+  }, []);
 
   useEffect(() => {
     setTimeLeft(countdown);
@@ -341,14 +351,34 @@ export function CrashGame() {
               </div>
 
               <div className="flex shrink-0 items-center justify-between px-3 pb-2 pt-0.5 sm:px-4 sm:pb-3 sm:pt-1">
-                <button
-                  type="button"
-                  onClick={toggleFullscreen}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
-                  aria-label="Ecrã inteiro"
-                >
-                  <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
+                    aria-label="Ecrã inteiro"
+                  >
+                    <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleCrashSoundMuted()}
+                    className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-lg border bg-tuao-dark-950 transition-colors',
+                      soundMuted
+                        ? 'border-red-500/40 text-red-400 hover:border-red-500/60 hover:text-red-300'
+                        : 'border-tuao-dark-700 text-tuao-text-secondary hover:border-tuao-dark-600 hover:text-white'
+                    )}
+                    aria-label={soundMuted ? 'Ativar som' : 'Silenciar som'}
+                    aria-pressed={soundMuted}
+                  >
+                    {soundMuted ? (
+                      <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+                    ) : (
+                      <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+                    )}
+                  </button>
+                </div>
                 <Link
                   to="/fairness"
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"

@@ -190,7 +190,6 @@ export function useCrashGame() {
 
     socket.on('crash:bet-accepted', (data?: { amount?: number }) => {
       pendingActionRef.current = null;
-      const wasQueued = queuedNextBetRef.current;
       setQueuedNextBet(false);
       queuedNextBetRef.current = false;
       setHasServerBet(true);
@@ -200,11 +199,6 @@ export function useCrashGame() {
       setServerCashedOut(false);
       setServerPayout(0);
       setLastError(null);
-      // Promoção da fila: já tocou som/moedas no queue; aposta no COUNTDOWN dispara FX.
-      if (!wasQueued) {
-        playCrashSound('bet');
-        emitCoinBurst({ direction: 'out' });
-      }
     });
 
     socket.on('crash:bet-queued', (data?: { amount?: number }) => {
@@ -218,8 +212,6 @@ export function useCrashGame() {
       setServerCashedOut(false);
       setServerPayout(0);
       setLastError(null);
-      playCrashSound('bet');
-      emitCoinBurst({ direction: 'out' });
     });
 
     socket.on('crash:bet-cancelled', () => {
@@ -232,9 +224,6 @@ export function useCrashGame() {
       setServerPayout(0);
       setServerBetAmount(0);
       setLastError(null);
-      stopCrashSound('bet');
-      playCrashSound('cancel');
-      emitCoinBurst({ direction: 'in', count: 6 });
     });
 
     socket.on('crash:cashout-ok', (data: { multiplier: number; payout: number }) => {
@@ -242,8 +231,6 @@ export function useCrashGame() {
       setServerCashedOut(true);
       setServerPayout(data.payout);
       setLastError(null);
-      playCrashSound('cashout');
-      emitCoinBurst({ direction: 'in', count: 10 });
     });
 
     socket.on('crash:error', (data: { code?: string }) => {
@@ -331,6 +318,8 @@ export function useCrashGame() {
       setQueuedNextBet(true);
       queuedNextBetRef.current = true;
     }
+    playCrashSound('bet');
+    emitCoinBurst({ direction: 'out' });
     getSocket().emit('crash:bet', { amount });
   }, []);
 
@@ -346,6 +335,9 @@ export function useCrashGame() {
     setQueuedNextBet(false);
     queuedNextBetRef.current = false;
     setServerBetAmount(0);
+    stopCrashSound('bet');
+    playCrashSound('cancel');
+    emitCoinBurst({ direction: 'in', count: 6 });
     getSocket().emit('crash:cancel');
   }, []);
 
@@ -356,6 +348,8 @@ export function useCrashGame() {
       Math.round(betAmountRef.current * multiplierRef.current * 100) / 100;
     setServerCashedOut(true);
     if (estimated > 0) setServerPayout(estimated);
+    playCrashSound('cashout');
+    emitCoinBurst({ direction: 'in', count: 10 });
     getSocket().emit('crash:cashout');
   }, []);
 

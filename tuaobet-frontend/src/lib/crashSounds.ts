@@ -1,6 +1,7 @@
 export type CrashSoundName = 'bet' | 'cashout' | 'cancel' | 'crash';
 
 const VOLUME = 0.35;
+const MUTE_KEY = 'tuaobet_crash_muted';
 /** Duração máxima por som (ms). Sem entrada = toca até ao fim. */
 const MAX_DURATION_MS: Partial<Record<CrashSoundName, number>> = {
   bet: 500,
@@ -9,7 +10,17 @@ const MAX_DURATION_MS: Partial<Record<CrashSoundName, number>> = {
 
 const cache = new Map<CrashSoundName, HTMLAudioElement>();
 const stopTimers = new Map<CrashSoundName, ReturnType<typeof setTimeout>>();
+const muteListeners = new Set<(muted: boolean) => void>();
 let unlocked = false;
+let muted = false;
+
+if (typeof window !== 'undefined') {
+  try {
+    muted = localStorage.getItem(MUTE_KEY) === '1';
+  } catch {
+    muted = false;
+  }
+}
 
 function getAudio(name: CrashSoundName): HTMLAudioElement {
   let audio = cache.get(name);
@@ -43,6 +54,37 @@ export function stopCrashSound(name: CrashSoundName) {
   }
 }
 
+function stopAllCrashSounds() {
+  for (const name of ['bet', 'cashout', 'cancel', 'crash'] as CrashSoundName[]) {
+    stopCrashSound(name);
+  }
+}
+
+export function isCrashSoundMuted(): boolean {
+  return muted;
+}
+
+export function setCrashSoundMuted(next: boolean) {
+  muted = next;
+  try {
+    localStorage.setItem(MUTE_KEY, next ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+  if (next) stopAllCrashSounds();
+  for (const listener of muteListeners) listener(muted);
+}
+
+export function toggleCrashSoundMuted(): boolean {
+  setCrashSoundMuted(!muted);
+  return muted;
+}
+
+export function onCrashSoundMuteChange(listener: (muted: boolean) => void): () => void {
+  muteListeners.add(listener);
+  return () => muteListeners.delete(listener);
+}
+
 function unlockOnce() {
   if (unlocked) return;
   unlocked = true;
@@ -69,6 +111,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function playCrashSound(name: CrashSoundName) {
+  if (muted) return;
   if (typeof document !== 'undefined' && document.hidden) return;
   try {
     stopCrashSound(name);
