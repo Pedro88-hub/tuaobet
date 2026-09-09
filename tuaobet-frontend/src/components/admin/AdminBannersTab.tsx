@@ -109,7 +109,7 @@ export const AdminBannersTab: React.FC<Props> = ({ onFlash, onError }) => {
           onClick={() => void saveBanner()}
           className="rounded-lg bg-tuao-primary px-4 py-2 text-xs font-bold uppercase text-tuao-dark-950 disabled:opacity-50"
         >
-          {saving ? 'A guardar…' : 'Guardar'}
+          {saving ? 'Salvando…' : 'Salvar'}
         </button>
         <button
           type="button"
@@ -120,7 +120,7 @@ export const AdminBannersTab: React.FC<Props> = ({ onFlash, onError }) => {
           Atualizar lista
         </button>
       </div>
-      {loading && <p className="mb-2 text-xs text-tuao-text-secondary">A carregar…</p>}
+      {loading && <p className="mb-2 text-xs text-tuao-text-secondary">Carregando…</p>}
       <ul className="space-y-3">
         {banners.map((b) => (
           <li

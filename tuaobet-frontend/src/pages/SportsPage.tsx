@@ -275,7 +275,7 @@ export function SportsPage() {
               </p>
             </div>
           ) : loading ? (
-            <p className="py-16 text-center text-sm text-tuao-text-secondary">A carregar…</p>
+            <p className="py-16 text-center text-sm text-tuao-text-secondary">Carregando…</p>
           ) : filteredMatches.length === 0 ? (
             <p className="rounded-xl border border-tuao-dark-800 bg-tuao-dark-900/30 px-4 py-12 text-center text-sm text-tuao-text-secondary">
               {matches.length === 0

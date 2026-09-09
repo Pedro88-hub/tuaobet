@@ -5,17 +5,17 @@ const items = [
   {
     icon: ShieldCheck,
     title: 'Transparência',
-    text: 'Verificação de fairness disponível para cada ronda.',
+    text: 'Verificação de fairness disponível para cada rodada.',
   },
   {
     icon: Zap,
     title: 'Instantâneo',
-    text: 'Apostas e resultados em tempo real, sem esperas.',
+    text: 'Apostas e resultados em tempo real, sem espera.',
   },
   {
     icon: Headphones,
     title: 'Suporte',
-    text: 'Equipa disponível quando precisares de ajuda.',
+    text: 'Equipe disponível quando você precisar de ajuda.',
   },
 ];
 

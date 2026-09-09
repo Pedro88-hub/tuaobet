@@ -125,14 +125,14 @@ export const getUserById = async (req: Request, res: Response) => {
     where: { id: req.params.id },
     select: userPublicSelect,
   });
-  if (!u) return res.status(404).json({ message: 'Utilizador não encontrado' });
+  if (!u) return res.status(404).json({ message: 'Usuário não encontrado' });
   return res.json(u);
 };
 
 export const listUserTransactions = async (req: Request, res: Response) => {
   const userId = req.params.id;
   const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-  if (!exists) return res.status(404).json({ message: 'Utilizador não encontrado' });
+  if (!exists) return res.status(404).json({ message: 'Usuário não encontrado' });
   const take = Math.min(Number(req.query.limit) || 30, 100);
   const skip = Number(req.query.offset) || 0;
   const [transactions, total] = await Promise.all([
@@ -150,7 +150,7 @@ export const listUserTransactions = async (req: Request, res: Response) => {
 export const listUserBets = async (req: Request, res: Response) => {
   const userId = req.params.id;
   const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-  if (!exists) return res.status(404).json({ message: 'Utilizador não encontrado' });
+  if (!exists) return res.status(404).json({ message: 'Usuário não encontrado' });
   const take = Math.min(Number(req.query.limit) || 30, 100);
   const skip = Number(req.query.offset) || 0;
   const [bets, total] = await Promise.all([
@@ -301,10 +301,10 @@ export const setUserPassword = async (req: AuthRequest, res: Response) => {
 export const deleteUser = async (req: AuthRequest, res: Response) => {
   const id = req.params.id;
   if (id === req.userId) {
-    return res.status(400).json({ message: 'Não podes eliminar a tua própria conta' });
+    return res.status(400).json({ message: 'Não é possível excluir a sua própria conta' });
   }
   const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) return res.status(404).json({ message: 'Utilizador não encontrado' });
+  if (!exists) return res.status(404).json({ message: 'Usuário não encontrado' });
   const aid = adminIdFrom(req);
   if (aid) {
     await logAdminAction(aid, 'user.delete', { targetUserId: id });
@@ -331,8 +331,8 @@ export const adjustBalance = async (req: AuthRequest, res: Response) => {
       title: 'Saldo atualizado',
       message:
         delta > 0
-          ? `Foi creditado ${delta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} na tua conta.`
-          : `Foi debitado ${Math.abs(delta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} da tua conta.`,
+          ? `Foi creditado ${delta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} na sua conta.`
+          : `Foi debitado ${Math.abs(delta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} da sua conta.`,
     });
     const aid = adminIdFrom(req);
     if (aid) {

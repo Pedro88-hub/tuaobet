@@ -60,7 +60,7 @@ export async function placeSportBet1x2(req: AuthRequest, res: Response) {
   });
   if (existing) {
     return res.status(409).json({
-      message: 'Já tens uma aposta 1X2 pendente neste jogo.',
+      message: 'Você já tem uma aposta 1X2 pendente neste jogo.',
       betId: existing.id,
     });
   }

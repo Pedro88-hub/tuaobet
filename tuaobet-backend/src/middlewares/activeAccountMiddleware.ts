@@ -18,7 +18,7 @@ export const activeAccountMiddleware = async (
     select: { status: true },
   });
   if (!user) {
-    return res.status(401).json({ message: 'Utilizador não encontrado' });
+    return res.status(401).json({ message: 'Usuário não encontrado' });
   }
   if (user.status === UserStatus.SUSPENDED) {
     return res.status(403).json({ message: 'Conta suspensa.', code: 'ACCOUNT_SUSPENDED' });

@@ -87,7 +87,7 @@ export function DiceGame() {
                  {/* Input Valor */}
                  <div className="space-y-1">
                     <div className="flex justify-between text-xs text-tuao-text-secondary font-bold uppercase mb-1">
-                       <span>Quantia (R$)</span>
+                       <span>Valor (R$)</span>
                     </div>
                     <div className="relative group">
                        <Input 
@@ -107,7 +107,7 @@ export function DiceGame() {
                  {/* Informações de Ganho */}
                  <div className="space-y-1">
                     <div className="flex justify-between text-xs text-tuao-text-secondary font-bold uppercase mb-1">
-                       <span>A Ganhar (R$)</span>
+                       <span>Ganho (R$)</span>
                     </div>
                     <div className="bg-tuao-dark-950 border border-tuao-dark-700 rounded-md h-12 flex items-center px-3 font-bold text-green-500 shadow-inner">
                        {potentialWin.toFixed(2)}

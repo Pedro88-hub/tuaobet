@@ -54,7 +54,7 @@ export function BaccaratTableStage({
   onAddChip: (zone: ZoneKey) => void;
 }) {
   const deckStatusText =
-    gamePhase === 'BETTING' ? 'Embaralhando…' : 'A distribuir…';
+    gamePhase === 'BETTING' ? 'Embaralhando…' : 'Distribuindo…';
 
   const phaseLabel =
     gamePhase === 'BETTING'

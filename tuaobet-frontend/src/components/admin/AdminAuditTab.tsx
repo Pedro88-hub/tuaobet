@@ -36,13 +36,13 @@ export const AdminAuditTab: React.FC<Props> = ({ onError }) => {
 
   return (
     <div className="rounded-xl border border-tuao-dark-700 bg-tuao-dark-900/80 p-4">
-      <h2 className="mb-3 text-sm font-bold text-white">Registo de ações (admin)</h2>
+      <h2 className="mb-3 text-sm font-bold text-white">Registro de ações (admin)</h2>
       <p className="mb-4 text-xs text-tuao-text-secondary">
-        Alterações sensíveis (contas, saldo, senha, banners, avisos) ficam registadas com o administrador
+        Alterações sensíveis (contas, saldo, senha, banners, avisos) ficam registradas com o administrador
         responsável.
       </p>
       {loading ? (
-        <p className="text-sm text-tuao-text-secondary">A carregar…</p>
+        <p className="text-sm text-tuao-text-secondary">Carregando…</p>
       ) : (
         <>
           <div className="max-h-[520px] overflow-auto rounded-lg border border-tuao-dark-800">
@@ -59,7 +59,7 @@ export const AdminAuditTab: React.FC<Props> = ({ onError }) => {
                 {logs.map((l) => (
                   <tr key={l.id} className="border-t border-tuao-dark-800/80 align-top">
                     <td className="p-2 whitespace-nowrap text-tuao-text-secondary">
-                      {new Date(l.createdAt).toLocaleString('pt-PT')}
+                      {new Date(l.createdAt).toLocaleString('pt-BR')}
                     </td>
                     <td className="p-2">
                       <span className="text-white">{l.admin.username}</span>
@@ -80,7 +80,7 @@ export const AdminAuditTab: React.FC<Props> = ({ onError }) => {
               </tbody>
             </table>
           </div>
-          {logs.length === 0 && <p className="mt-2 text-xs text-tuao-text-secondary">Sem registos.</p>}
+          {logs.length === 0 && <p className="mt-2 text-xs text-tuao-text-secondary">Sem registros.</p>}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px]">
             <span className="text-tuao-text-secondary">
               Página {page + 1} / {pages} · {total} total

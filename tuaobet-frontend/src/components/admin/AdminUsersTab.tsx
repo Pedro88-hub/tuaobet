@@ -91,7 +91,7 @@ export const AdminUsersTab: React.FC<Props> = ({ onFlash, onError }) => {
               onChange={(e) => setSortField(e.target.value as UserSortField)}
               className="mt-1 rounded-lg border border-tuao-dark-600 bg-tuao-dark-950 px-2 py-2 text-xs text-white"
             >
-              <option value="createdAt">Data de registo</option>
+              <option value="createdAt">Data de registro</option>
               <option value="balance">Saldo</option>
               <option value="xp">XP</option>
               <option value="email">Email</option>
@@ -140,7 +140,7 @@ export const AdminUsersTab: React.FC<Props> = ({ onFlash, onError }) => {
           <table className="w-full text-left text-xs">
             <thead className="sticky top-0 bg-tuao-dark-950 text-tuao-text-secondary">
               <tr>
-                <th className="p-2 font-semibold">Utilizador</th>
+                <th className="p-2 font-semibold">Usuário</th>
                 <th className="p-2 font-semibold">Email</th>
                 <th className="p-2 font-semibold">Saldo</th>
                 <th className="p-2 font-semibold">Papel</th>
@@ -198,7 +198,7 @@ export const AdminUsersTab: React.FC<Props> = ({ onFlash, onError }) => {
 
       <div className="rounded-xl border border-tuao-dark-700 bg-tuao-dark-900/80 p-4">
         {!selected ? (
-          <p className="text-sm text-tuao-text-secondary">Seleciona uma conta na lista.</p>
+          <p className="text-sm text-tuao-text-secondary">Selecione uma conta na lista.</p>
         ) : (
           <AdminUserDetailPanel
             user={selected}

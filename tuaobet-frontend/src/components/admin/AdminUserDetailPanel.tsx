@@ -123,11 +123,11 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
         xp: editXp,
         status: editStatus,
       });
-      onFlash('Utilizador atualizado');
+      onFlash('Usuário atualizado');
       await onReloadList();
       onUpdateSelected(updated);
     } catch (e) {
-      onError(e instanceof ApiError ? e.message : 'Erro ao guardar');
+      onError(e instanceof ApiError ? e.message : 'Erro ao salvar');
     } finally {
       setSavingProfile(false);
     }
@@ -175,7 +175,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
   };
 
   const removeUser = async () => {
-    if (!window.confirm(`Eliminar definitivamente ${user.username}?`)) return;
+    if (!window.confirm(`Excluir definitivamente ${user.username}?`)) return;
     setDeleting(true);
     onError(null);
     try {
@@ -184,7 +184,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
       await onReloadList();
       onDeselect();
     } catch (e) {
-      onError(e instanceof ApiError ? e.message : 'Erro ao eliminar');
+      onError(e instanceof ApiError ? e.message : 'Erro ao excluir');
     } finally {
       setDeleting(false);
     }
@@ -224,7 +224,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
 
       <p className="font-mono text-[10px] text-tuao-text-secondary">id: {user.id}</p>
       <p className="text-[11px] text-tuao-text-secondary">
-        Registo: {new Date(user.createdAt).toLocaleString('pt-PT')}
+        Registro: {new Date(user.createdAt).toLocaleString('pt-BR')}
       </p>
 
       {subTab === 'profile' && (
@@ -289,7 +289,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
             onClick={() => void saveUser()}
             className="w-full rounded-lg bg-tuao-primary py-2.5 text-xs font-bold uppercase text-tuao-dark-950 disabled:opacity-50"
           >
-            {savingProfile ? 'A guardar…' : 'Guardar dados'}
+            {savingProfile ? 'Salvando…' : 'Salvar dados'}
           </button>
 
           <div className="border-t border-tuao-dark-700 pt-4">
@@ -307,7 +307,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
               onClick={() => void savePassword()}
               className="w-full rounded-lg border border-tuao-dark-600 py-2 text-xs font-semibold text-white hover:bg-tuao-dark-800 disabled:opacity-50"
             >
-              {savingPassword ? 'A alterar…' : 'Alterar senha'}
+              {savingPassword ? 'Alterando…' : 'Alterar senha'}
             </button>
           </div>
 
@@ -333,7 +333,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
               onClick={() => void applyBalance()}
               className="w-full rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50"
             >
-              {savingBalance ? 'A aplicar…' : 'Aplicar ajuste'}
+              {savingBalance ? 'Aplicando…' : 'Aplicar ajuste'}
             </button>
           </div>
 
@@ -343,7 +343,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
             onClick={() => void removeUser()}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/40 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50"
           >
-            <Trash2 size={14} /> {deleting ? 'A eliminar…' : 'Eliminar conta'}
+            <Trash2 size={14} /> {deleting ? 'Excluindo…' : 'Excluir conta'}
           </button>
         </div>
       )}
@@ -351,7 +351,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
       {subTab === 'transactions' && (
         <div>
           {txLoading ? (
-            <p className="text-sm text-tuao-text-secondary">A carregar transações…</p>
+            <p className="text-sm text-tuao-text-secondary">Carregando transações…</p>
           ) : (
             <>
               <div className="max-h-[360px] overflow-auto rounded-lg border border-tuao-dark-800">
@@ -368,7 +368,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
                     {tx.map((t) => (
                       <tr key={t.id} className="border-t border-tuao-dark-800/80">
                         <td className="p-2 whitespace-nowrap text-tuao-text-secondary">
-                          {new Date(t.createdAt).toLocaleString('pt-PT')}
+                          {new Date(t.createdAt).toLocaleString('pt-BR')}
                         </td>
                         <td className="p-2 font-mono">{t.type}</td>
                         <td className="p-2 tabular-nums text-emerald-300/90">
@@ -412,7 +412,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
       {subTab === 'bets' && (
         <div>
           {betsLoading ? (
-            <p className="text-sm text-tuao-text-secondary">A carregar apostas…</p>
+            <p className="text-sm text-tuao-text-secondary">Carregando apostas…</p>
           ) : (
             <>
               <div className="max-h-[360px] space-y-2 overflow-auto pr-1">
@@ -446,7 +446,7 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
                         ` · retorno ${b.payout.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                     </p>
                     <p className="text-[10px] text-tuao-text-secondary">
-                      {new Date(b.createdAt).toLocaleString('pt-PT')}
+                      {new Date(b.createdAt).toLocaleString('pt-BR')}
                     </p>
                   </div>
                 ))}

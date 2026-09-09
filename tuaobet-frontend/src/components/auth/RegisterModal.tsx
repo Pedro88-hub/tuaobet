@@ -16,7 +16,7 @@ export function RegisterModal() {
       isOpen={isRegisterModalOpen}
       onClose={closeRegisterModal}
       title="Criar conta"
-      subtitle="Regista-te em segundos e recebe bónus de boas-vindas para começar."
+      subtitle="Cadastre-se em segundos e receba bônus de boas-vindas para começar."
       headerIcon={<UserPlus size={20} strokeWidth={2} />}
     >
       <AuthForms mode="register" onSwitchMode={handleSwitchToLogin} />

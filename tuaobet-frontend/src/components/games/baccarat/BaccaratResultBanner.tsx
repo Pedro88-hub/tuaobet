@@ -49,7 +49,7 @@ export function BaccaratResultBanner({
         >
           {personalPayout > 0
             ? `+R$ ${formatBrl(personalPayout)}`
-            : 'Sem ganho nesta ronda'}
+            : 'Sem ganho nesta rodada'}
         </p>
       )}
     </div>

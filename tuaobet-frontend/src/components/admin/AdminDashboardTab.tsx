@@ -66,18 +66,18 @@ export const AdminDashboardTab: React.FC<Props> = ({ onError }) => {
         </button>
       </div>
 
-      {loading && !data && <p className="text-sm text-tuao-text-secondary">A carregar…</p>}
+      {loading && !data && <p className="text-sm text-tuao-text-secondary">Carregando…</p>}
 
       {data && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard label="Utilizadores (total)" value={fmt(data.usersTotal, { maximumFractionDigits: 0 })} />
+          <StatCard label="Usuários (total)" value={fmt(data.usersTotal, { maximumFractionDigits: 0 })} />
           <StatCard
             label="Contas ativas / suspensas / banidas"
             value={`${data.usersActive} / ${data.usersSuspended} / ${data.usersBanned}`}
             sub="Estado da conta"
           />
           <StatCard
-            label="Novos registos (24h)"
+            label="Novos registros (24h)"
             value={fmt(data.newUsersLast24h, { maximumFractionDigits: 0 })}
           />
           <StatCard

@@ -4,7 +4,7 @@ export function BaccaratGameInfo() {
   return (
     <div className="max-w-2xl space-y-4 p-6 text-sm leading-relaxed text-tuao-text-secondary">
       <p>
-        No <span className="font-semibold text-white">Baccarat</span> (Punto Banco) apostas em{' '}
+        No <span className="font-semibold text-white">Baccarat</span> (Punto Banco) você aposta em{' '}
         <span className="font-semibold text-blue-200">Jogador</span>,{' '}
         <span className="font-semibold text-red-200">Banca</span> ou{' '}
         <span className="font-semibold text-emerald-200">Empate</span> antes das cartas serem
@@ -27,9 +27,9 @@ export function BaccaratGameInfo() {
         </li>
       </ul>
       <p>
-        Seleciona uma ficha, toca nas zonas para montar a aposta e confirma com{' '}
+        Selecione uma ficha, toque nas zonas para montar a aposta e confirme com{' '}
         <span className="font-semibold text-white">Apostar</span>. Só é permitida uma aposta por
-        ronda.
+        rodada.
       </p>
     </div>
   );

@@ -126,7 +126,7 @@ export const AdminAnnouncementsTab: React.FC<Props> = ({ onFlash, onError }) => 
           active: true,
           deactivateOthers: true,
         });
-        onFlash('Aviso criado e emitido aos utilizadores ligados');
+        onFlash('Aviso criado e emitido aos usuários conectados');
       }
       setForm(emptyForm());
       setEditingId(null);
@@ -181,7 +181,7 @@ export const AdminAnnouncementsTab: React.FC<Props> = ({ onFlash, onError }) => 
   };
 
   const remove = async (a: AnnouncementRow) => {
-    if (!window.confirm(`Eliminar o aviso "${a.title}"?`)) return;
+    if (!window.confirm(`Excluir o aviso "${a.title}"?`)) return;
     onError(null);
     try {
       await deleteAnnouncement(a.id);
@@ -298,7 +298,7 @@ export const AdminAnnouncementsTab: React.FC<Props> = ({ onFlash, onError }) => 
             onClick={() => void submit()}
             className="rounded-lg bg-tuao-primary px-4 py-2.5 text-xs font-bold uppercase text-tuao-dark-950 disabled:opacity-50"
           >
-            {publishing ? 'A guardar…' : editingId ? 'Guardar alterações' : 'Publicar e notificar (socket)'}
+            {publishing ? 'Salvando…' : editingId ? 'Salvar alterações' : 'Publicar e notificar (socket)'}
           </button>
           {editingId && (
             <button
@@ -314,7 +314,7 @@ export const AdminAnnouncementsTab: React.FC<Props> = ({ onFlash, onError }) => 
 
       <div className="rounded-xl border border-tuao-dark-700 bg-tuao-dark-900/80 p-4">
         <h2 className="mb-3 text-sm font-bold text-white">Histórico</h2>
-        {loading && <p className="text-xs text-tuao-text-secondary">A carregar…</p>}
+        {loading && <p className="text-xs text-tuao-text-secondary">Carregando…</p>}
         <ul className="space-y-3">
           {announcements.map((a) => (
             <li
@@ -354,7 +354,7 @@ export const AdminAnnouncementsTab: React.FC<Props> = ({ onFlash, onError }) => 
                   onClick={() => void remove(a)}
                   className="rounded border border-red-500/40 px-2 py-1 text-[10px] font-semibold uppercase text-red-300 hover:bg-red-500/10"
                 >
-                  Eliminar
+                  Excluir
                 </button>
                 {a.active ? (
                   <button

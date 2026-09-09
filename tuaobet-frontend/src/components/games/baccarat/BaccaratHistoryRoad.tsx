@@ -32,7 +32,7 @@ export function BaccaratHistoryRoad({
       </div>
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
         {cells.length === 0 ? (
-          <p className="py-1 text-[11px] text-tuao-text-secondary/70">Aguardando rondas…</p>
+          <p className="py-1 text-[11px] text-tuao-text-secondary/70">Aguardando rodadas…</p>
         ) : (
           cells.map((cell, i) => (
             <div

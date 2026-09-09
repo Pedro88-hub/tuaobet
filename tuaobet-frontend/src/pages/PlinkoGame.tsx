@@ -339,7 +339,7 @@ export function PlinkoGame() {
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
                 <div className="flex gap-2">
                   <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary">
-                    <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                    <span className="shrink-0 text-sm font-semibold text-white">Valor</span>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -422,7 +422,7 @@ export function PlinkoGame() {
                     type="button"
                     onClick={toggleFullscreen}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
-                    aria-label="Ecrã inteiro"
+                    aria-label="Tela cheia"
                   >
                     <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
                   </button>
@@ -561,7 +561,7 @@ export function PlinkoGame() {
               {history.length === 0 ? (
                 <div className="flex min-h-[180px] items-center justify-center">
                   <p className="text-center text-[11px] font-bold uppercase tracking-wider text-tuao-text-secondary/80">
-                    Ainda sem quedas registadas neste dispositivo
+                    Ainda sem quedas registradas neste dispositivo
                   </p>
                 </div>
               ) : (
@@ -604,10 +604,10 @@ export function PlinkoGame() {
             <div className="max-w-2xl space-y-4 p-6 text-sm leading-relaxed text-tuao-text-secondary">
               <p>
                 No <span className="font-semibold text-white">Plinko</span> a bola desce pelo tabuleiro de pinos e cai
-                numa ranhura com um multiplicador. O risco e o número de linhas alteram a distribuição dos prémios.
+                numa ranhura com um multiplicador. O risco e o número de linhas alteram a distribuição dos prêmios.
               </p>
               <p>
-                Cada queda é registada no histórico. Para transparência e verificação, consulta a página de{' '}
+                Cada queda é registrada no histórico. Para transparência e verificação, consulte a página de{' '}
                 <Link to="/fairness" className="font-semibold text-tuao-primary hover:text-tuao-primary-hover">
                   justiça comprovável
                 </Link>
@@ -622,12 +622,12 @@ export function PlinkoGame() {
         isOpen={dropsHistoryOpen}
         onClose={() => setDropsHistoryOpen(false)}
         title="Histórico de quedas"
-        subtitle="Guardado neste navegador (últimas quedas primeiro)."
+        subtitle="Salvo neste navegador (últimas quedas primeiro)."
         size="wide"
         headerIcon={<BarChart2 className="h-5 w-5" strokeWidth={2} />}
       >
         {history.length === 0 ? (
-          <p className="text-center text-sm text-tuao-text-secondary">Ainda sem quedas registadas.</p>
+          <p className="text-center text-sm text-tuao-text-secondary">Ainda sem quedas registradas.</p>
         ) : (
           <ul className="max-h-[min(60vh,480px)] divide-y divide-tuao-dark-800/80 overflow-y-auto rounded-lg border border-tuao-dark-800 bg-tuao-dark-950/40 pr-1 [scrollbar-width:thin]">
             {history.map((item, idx) => (

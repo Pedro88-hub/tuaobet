@@ -234,7 +234,7 @@ export function CrashGame() {
                 <div className="flex gap-2">
                   <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12">
                     {!betAmountDigits && (
-                      <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                      <span className="shrink-0 text-sm font-semibold text-white">Valor</span>
                     )}
                     <input
                       type="text"
@@ -242,7 +242,7 @@ export function CrashGame() {
                       value={betAmountDisplay}
                       onChange={(e) => setBetAmountDigits(sanitizeMaskDigits(e.target.value))}
                       disabled={amountDisabled}
-                      aria-label="Quantia"
+                      aria-label="Valor"
                       placeholder="0,00"
                       className="min-w-0 flex-1 bg-transparent text-right text-base font-bold tabular-nums text-white outline-none placeholder:text-tuao-text-secondary/60 disabled:opacity-50"
                     />
@@ -376,7 +376,7 @@ export function CrashGame() {
                     type="button"
                     onClick={toggleFullscreen}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
-                    aria-label="Ecrã inteiro"
+                    aria-label="Tela cheia"
                   >
                     <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
                   </button>
@@ -453,8 +453,8 @@ export function CrashGame() {
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 text-tuao-text-secondary transition-colors',
                     'bg-blaze-panel hover:border-tuao-primary/40 hover:text-tuao-primary lg:bg-[#0c1218]'
                   )}
-                  title="Ver histórico de rondas"
-                  aria-label="Ver histórico de rondas"
+                  title="Ver histórico de rodadas"
+                  aria-label="Ver histórico de rodadas"
                 >
                   <BarChart2 className="h-4 w-4" strokeWidth={2.2} />
                 </button>
@@ -482,7 +482,7 @@ export function CrashGame() {
                       className="h-6 min-h-6 w-full rounded-md"
                       labelClassName="text-xs"
                     >
-                      {timeLeft > 0 ? `Começando em ${timeLeft.toFixed(2)}s` : 'A iniciar…'}
+                      {timeLeft > 0 ? `Começando em ${timeLeft.toFixed(2)}s` : 'Iniciando…'}
                     </GameCountdownBar>
                   </div>
                 </div>
@@ -590,7 +590,7 @@ export function CrashGame() {
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <p className="text-[11px] font-medium leading-snug text-tuao-text-secondary sm:text-xs">
                     {players.length === 0
-                      ? 'Ainda sem apostas nesta ronda'
+                      ? 'Ainda sem apostas nesta rodada'
                       : players.length === 1
                         ? '1 jogador fez a sua aposta'
                         : `${players.length} jogadores fizeram as suas apostas`}
@@ -683,12 +683,12 @@ export function CrashGame() {
           ) : (
             <div className="max-w-2xl space-y-4 p-6 text-sm leading-relaxed text-tuao-text-secondary">
               <p>
-                No <span className="font-semibold text-white">Crash</span> apostas antes do avião subir. Retira antes
-                do multiplicador estourar para ganhares; se cair antes, perdes a aposta desta ronda.
+                No <span className="font-semibold text-white">Crash</span> você aposta antes do avião subir. Retire antes
+                do multiplicador estourar para ganhar; se cair antes, você perde a aposta desta rodada.
               </p>
               <p>
-                Podes definir <span className="font-semibold text-white">auto retirar</span> para sair ao atingir um
-                multiplicador. O resultado é verificável: consulta a página de{' '}
+                Você pode definir <span className="font-semibold text-white">auto retirar</span> para sair ao atingir um
+                multiplicador. O resultado é verificável: consulte a página de{' '}
                 <Link to="/fairness" className="font-semibold text-tuao-primary hover:text-tuao-primary-hover">
                   justiça comprovável
                 </Link>
@@ -703,13 +703,13 @@ export function CrashGame() {
       <Modal
         isOpen={roundsHistoryOpen}
         onClose={() => setRoundsHistoryOpen(false)}
-        title="Histórico de rondas"
-        subtitle="Multiplicadores das últimas rondas (mais recentes primeiro). 20 por página."
+        title="Histórico de rodadas"
+        subtitle="Multiplicadores das últimas rodadas (mais recentes primeiro). 20 por página."
         size="wide"
         headerIcon={<BarChart2 className="h-5 w-5" strokeWidth={2.2} />}
       >
         {history.length === 0 ? (
-          <p className="text-center text-sm text-tuao-text-secondary">Ainda sem rondas registadas.</p>
+          <p className="text-center text-sm text-tuao-text-secondary">Ainda sem rodadas registradas.</p>
         ) : (
           <>
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-tuao-text-secondary">
@@ -739,7 +739,7 @@ export function CrashGame() {
                       'flex h-10 items-center justify-center rounded-lg border px-1.5 text-center font-mono text-sm tabular-nums',
                       crashHistoryChipClass(val)
                     )}
-                    title={`Ronda ${historyModalPage * CRASH_HISTORY_MODAL_PAGE_SIZE + i + 1}`}
+                    title={`Rodada ${historyModalPage * CRASH_HISTORY_MODAL_PAGE_SIZE + i + 1}`}
                   >
                     {formatMultiplierPt(val)}
                   </div>

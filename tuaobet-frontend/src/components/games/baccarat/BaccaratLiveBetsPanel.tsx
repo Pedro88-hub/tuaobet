@@ -42,7 +42,7 @@ export function BaccaratLiveBetsPanel({
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <p className="text-[11px] font-medium leading-snug text-tuao-text-secondary sm:text-xs">
             {liveBets.length === 0
-              ? 'Ainda sem apostas nesta ronda'
+              ? 'Ainda sem apostas nesta rodada'
               : liveBets.length === 1
                 ? '1 jogador fez a sua aposta'
                 : `${liveBets.length} jogadores fizeram as suas apostas`}

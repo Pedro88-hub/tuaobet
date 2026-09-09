@@ -109,7 +109,7 @@ function handleSportsError(res: Response, err: unknown) {
   if (err instanceof ApiSportsApiError) {
     const code = err.status >= 400 && err.status < 600 ? err.status : 502;
     return res.status(code).json({
-      message: 'Erro ao contactar API-Football (api-sports.io)',
+      message: 'Erro ao contatar API-Football (api-sports.io)',
       detail: err.message,
     });
   }

@@ -155,7 +155,7 @@ export const AuthForms: React.FC<AuthFormsProps> = ({ mode, onSwitchMode }) => {
       {onSwitchMode ? (
         <div className="rounded-xl border border-tuao-dark-800 bg-tuao-dark-950/50 px-4 py-3.5 text-center">
           <p className="text-[13px] text-tuao-text-secondary">
-            {mode === 'login' ? 'Ainda não tens conta?' : 'Já tens conta?'}{' '}
+            {mode === 'login' ? 'Ainda não tem conta?' : 'Já tem conta?'}{' '}
             <button
               type="button"
               onClick={onSwitchMode}

@@ -263,7 +263,7 @@ export function MinesGame() {
                 <div className="flex flex-row gap-2 lg:flex-col">
                   <div className="flex min-w-0 flex-1 gap-2 lg:w-full">
                     <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary lg:bg-tuao-dark-950">
-                      <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                      <span className="shrink-0 text-sm font-semibold text-white">Valor</span>
                       <input
                         type="number"
                         inputMode="decimal"
@@ -363,7 +363,7 @@ export function MinesGame() {
                     type="button"
                     onClick={toggleFullscreen}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
-                    aria-label="Ecrã inteiro"
+                    aria-label="Tela cheia"
                   >
                     <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
                   </button>
@@ -472,7 +472,7 @@ export function MinesGame() {
                       <>
                         <Bomb className="mb-2 h-12 w-12 text-red-500" />
                         <h2 className="text-xl font-black uppercase tracking-wider text-red-500">Explodiu</h2>
-                        <div className="mt-2 text-sm text-tuao-text-secondary">Tenta outra ronda</div>
+                        <div className="mt-2 text-sm text-tuao-text-secondary">Tente outra rodada</div>
                       </>
                     )}
                   </div>
@@ -553,7 +553,7 @@ export function MinesGame() {
                   Minas
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-tuao-text-secondary">
-                  Quantia
+                  Valor
                 </span>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
@@ -618,7 +618,7 @@ export function MinesGame() {
                       className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-tuao-dark-950/40"
                     >
                       <span className="text-[11px] font-bold uppercase tracking-wider text-tuao-text-secondary">
-                        Ronda {history.length - idx}
+                        Rodada {history.length - idx}
                       </span>
                       <span
                         className={cn(
@@ -636,13 +636,13 @@ export function MinesGame() {
           ) : (
             <div className="max-w-2xl space-y-4 p-6 text-sm leading-relaxed text-tuao-text-secondary">
               <p>
-                No <span className="font-semibold text-white">Mines</span> escolhes quantas minas existem no tabuleiro
-                5×5. Cada casa segura revelada aumenta o multiplicador; se clicares numa mina, perdes a aposta desta
-                ronda.
+                No <span className="font-semibold text-white">Mines</span> você escolhe quantas minas existem no tabuleiro
+                5×5. Cada casa segura revelada aumenta o multiplicador; se clicar numa mina, perde a aposta desta
+                rodada.
               </p>
               <p>
-                Podes retirar em qualquer momento durante o jogo para garantir o valor atual. O resultado é
-                verificável: consulta a página de{' '}
+                Você pode retirar em qualquer momento durante o jogo para garantir o valor atual. O resultado é
+                verificável: consulte a página de{' '}
                 <Link to="/fairness" className="font-semibold text-tuao-primary hover:text-tuao-primary-hover">
                   justiça comprovável
                 </Link>

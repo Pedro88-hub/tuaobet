@@ -61,7 +61,7 @@ export const login = async (req: Request, res: Response) => {
         message:
           user.status === UserStatus.BANNED
             ? 'Conta banida.'
-            : 'Conta suspensa. Contacta o suporte.',
+            : 'Conta suspensa. Contate o suporte.',
         code: user.status === UserStatus.BANNED ? 'ACCOUNT_BANNED' : 'ACCOUNT_SUSPENDED',
       });
     }
@@ -100,7 +100,7 @@ export const getMe = async (req: any, res: Response) => {
       },
     });
     if (!user) {
-      return res.status(404).json({ message: 'Utilizador não encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
     if (user.status !== UserStatus.ACTIVE) {
       return res.status(403).json({

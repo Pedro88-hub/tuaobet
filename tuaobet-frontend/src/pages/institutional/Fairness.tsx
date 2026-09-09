@@ -9,9 +9,9 @@ export function Fairness() {
           <h1 className="text-3xl font-black mb-2">Justiça e provably fair</h1>
           <p className="text-tuao-text-secondary leading-relaxed">
             Em <strong className="text-white">Crash</strong> e <strong className="text-white">Double</strong>{' '}
-            usamos <strong className="text-tuao-primary">commit–reveal</strong>: antes de apostares vês apenas o{' '}
+            usamos <strong className="text-tuao-primary">commit–reveal</strong>: antes de apostar você vê apenas o{' '}
             <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">SHA-256</code> do server seed; depois do
-            resultado o servidor revela o seed em claro. Podes confirmar que{' '}
+            resultado o servidor revela o seed em claro. Você pode confirmar que{' '}
             <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">hash(seed) = hash publicado</code> e que
             o resultado foi derivado desse seed (a app verifica automaticamente em cada rodada).
           </p>
@@ -21,11 +21,11 @@ export function Fairness() {
           <h2 className="text-xl font-bold text-tuao-primary">Crash</h2>
           <ol className="list-decimal list-inside text-tuao-text-secondary space-y-2 leading-relaxed">
             <li>
-              Gera-se um <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">serverSeed</code> aleatório
+              É gerado um <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">serverSeed</code> aleatório
               (32 bytes em hex).
             </li>
             <li>
-              Publica-se <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">serverSeedHash = SHA-256(serverSeed)</code>{' '}
+              É publicado <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">serverSeedHash = SHA-256(serverSeed)</code>{' '}
               no início da contagem regressiva.
             </li>
             <li>
@@ -58,8 +58,8 @@ export function Fairness() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-tuao-primary">Mines, Dice e Plinko</h2>
           <p className="text-tuao-text-secondary leading-relaxed">
-            Resolvidos na API autenticada com RNG no servidor. Estas rotas têm{' '}
-            <strong className="text-white">rate limiting</strong> por utilizador para reduzir abuso; o limite por
+            Resolvidos na API autenticada com RNG no servidor. Essas rotas têm{' '}
+            <strong className="text-white">rate limiting</strong> por usuário para reduzir abuso; o limite por
             minuto pode ser ajustado no backend com <code className="text-white/90 bg-tuao-dark-800 px-1 rounded">GAMES_RATE_LIMIT_MAX</code>.
           </p>
         </section>
@@ -69,7 +69,7 @@ export function Fairness() {
           <ul className="list-disc list-inside text-tuao-text-secondary space-y-2">
             <li>Arquivo público de histórico (hash + seed revelado + resultado) para auditoria externa.</li>
             <li>Seed do cliente opcional (nonce) misturado no hash para maior transparência.</li>
-            <li>Conformidade legal e jogo responsável no teu país.</li>
+            <li>Conformidade legal e jogo responsável no seu país.</li>
           </ul>
         </section>
 

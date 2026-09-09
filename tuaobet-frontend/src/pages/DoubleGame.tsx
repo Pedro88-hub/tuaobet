@@ -277,7 +277,7 @@ export function DoubleGame() {
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-3 sm:px-4">
                 <div className="flex gap-2">
                   <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary lg:bg-tuao-dark-950">
-                    <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                    <span className="shrink-0 text-sm font-semibold text-white">Valor</span>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -362,10 +362,10 @@ export function DoubleGame() {
                   </div>
                   <p className="text-center text-[10px] leading-snug text-tuao-text-secondary">
                     {ctaMode === 'cancelar'
-                      ? 'Podes cancelar e reaver o saldo enquanto a ronda está aberta.'
+                      ? 'Você pode cancelar e recuperar o saldo enquanto a rodada está aberta.'
                       : ctaMode === 'apostado'
-                        ? 'Aposta bloqueada — a ronda já começou.'
-                        : 'Seleciona a cor e confirma com Apostar.'}
+                        ? 'Aposta bloqueada — a rodada já começou.'
+                        : 'Selecione a cor e confirma com Apostar.'}
                   </p>
                 </div>
               </div>
@@ -375,7 +375,7 @@ export function DoubleGame() {
                   type="button"
                   onClick={toggleFullscreen}
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
-                  aria-label="Ecrã inteiro"
+                  aria-label="Tela cheia"
                 >
                   <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
                 </button>
@@ -459,7 +459,7 @@ export function DoubleGame() {
                 <div className="mx-auto flex h-7 w-full max-w-xl items-center justify-center rounded-md border border-tuao-dark-800 bg-[#1a242d]/90 lg:bg-tuao-dark-950/80">
                   <span className="text-xs font-bold uppercase tracking-wider text-tuao-text-secondary">
                     {gameState === 'SPINNING'
-                      ? 'A girar…'
+                      ? 'Girando…'
                       : gameState === 'RESULT'
                         ? 'Resultado'
                         : '—'}
@@ -561,11 +561,11 @@ export function DoubleGame() {
           ) : (
             <div className="p-6 text-sm text-tuao-text-secondary leading-relaxed space-y-4 max-w-2xl">
               <p>
-                No <span className="text-white font-semibold">Double</span> escolhes vermelho (2×), branco (14×) ou
-                preto (2×). Se a roleta parar na tua cor, ganhas o valor apostado multiplicado pelo indicador.
+                No <span className="text-white font-semibold">Double</span> você escolhe vermelho (2×), branco (14×) ou
+                preto (2×). Se a roleta parar na sua cor, você ganha o valor apostado multiplicado pelo indicador.
               </p>
               <p>
-                As rondas são sincronizadas em tempo real. O resultado é verificável: consulta a página de{' '}
+                As rodadas são sincronizadas em tempo real. O resultado é verificável: consulte a página de{' '}
                 <Link to="/fairness" className="text-tuao-primary hover:text-tuao-primary-hover font-semibold">
                   justiça comprovável
                 </Link>
@@ -585,7 +585,7 @@ export function DoubleGame() {
         headerIcon={<BarChart2 className="h-5 w-5" strokeWidth={2.2} />}
       >
         {history.length === 0 ? (
-          <p className="text-center text-sm text-tuao-text-secondary">Ainda sem giros registados.</p>
+          <p className="text-center text-sm text-tuao-text-secondary">Ainda sem giros registrados.</p>
         ) : (
           <div className="flex max-h-[min(60vh,420px)] flex-wrap gap-2 overflow-y-auto pr-1 [scrollbar-width:thin]">
             {history.map((item, idx) => (
@@ -674,7 +674,7 @@ const BetList = ({ color, multiplier, totalBets, myBet }: BetListProps) => {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
             </span>
-            A tua aposta
+            Sua aposta
           </span>
           <span className="text-xs font-bold tabular-nums text-white">{formatBrl(myBet)}</span>
         </div>
@@ -686,7 +686,7 @@ const BetList = ({ color, multiplier, totalBets, myBet }: BetListProps) => {
           Usuário
         </span>
         <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-tuao-text-secondary">
-          Quantia
+          Valor
         </span>
       </div>
 

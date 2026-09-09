@@ -395,7 +395,7 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                   <p className="text-[10px] font-black uppercase tracking-wider text-tuao-text-secondary">Saldo disponível</p>
                   <p className="mt-1 text-xl font-black tabular-nums text-white">R$ {formatBalancePtBr(animatedBalance)}</p>
                   <p className="mt-3 text-[11px] text-tuao-text-secondary">
-                    Depósitos e levantamentos serão integrados em breve.
+                    Depósitos e saques serão integrados em breve.
                   </p>
                   <button
                     type="button"

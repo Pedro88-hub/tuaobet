@@ -31,7 +31,7 @@ export function ProvablyFairCrashStrip({
       reveal.roundId,
       reveal.crashPoint
     ).then((r) => {
-      setAutoVerify(r.ok ? 'Rodada verificada ✓' : 'Verificação falhou — contacta o admin');
+      setAutoVerify(r.ok ? 'Rodada verificada ✓' : 'Verificação falhou — contate o admin');
     });
   }, [reveal]);
 
@@ -96,7 +96,7 @@ export function ProvablyFairDoubleStrip({
       reveal.resultNumber,
       reveal.color
     ).then((r) => {
-      setAutoVerify(r.ok ? 'Rodada verificada ✓' : 'Verificação falhou — contacta o admin');
+      setAutoVerify(r.ok ? 'Rodada verificada ✓' : 'Verificação falhou — contate o admin');
     });
   }, [reveal]);
 

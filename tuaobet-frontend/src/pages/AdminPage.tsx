@@ -137,7 +137,7 @@ function AdminLoginPanel() {
               disabled={isLoading}
               className="w-full rounded-lg bg-tuao-primary py-3 text-sm font-black uppercase tracking-wide text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] transition hover:bg-tuao-primary-hover disabled:opacity-60"
             >
-              {isLoading ? 'A entrar…' : 'Entrar no painel'}
+              {isLoading ? 'Entrando…' : 'Entrar no painel'}
             </button>
           </form>
         )}
@@ -161,7 +161,7 @@ export const AdminPage: React.FC = () => {
   if (!authReady) {
     return (
       <AdminShell>
-        <p className="text-center text-tuao-text-secondary">A carregar…</p>
+        <p className="text-center text-tuao-text-secondary">Carregando…</p>
       </AdminShell>
     );
   }

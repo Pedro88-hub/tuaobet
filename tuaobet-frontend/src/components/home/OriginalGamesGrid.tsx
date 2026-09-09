@@ -34,7 +34,7 @@ const games: GameItem[] = [
   {
     name: 'Mines',
     path: '/mines',
-    tagline: 'Campo minado com prémios',
+    tagline: 'Campo minado com prêmios',
     icon: Bomb,
     gradient: 'from-amber-500/35 via-tuao-dark-900 to-tuao-dark-950',
     accent: 'text-amber-400',

@@ -104,7 +104,7 @@ export const AdminBetsLogTab: React.FC<Props> = ({ onError }) => {
           <thead className="sticky top-0 bg-tuao-dark-950 text-tuao-text-secondary">
             <tr>
               <th className="p-2 font-semibold">Data</th>
-              <th className="p-2 font-semibold">Utilizador</th>
+              <th className="p-2 font-semibold">Usuário</th>
               <th className="p-2 font-semibold">Jogo</th>
               <th className="p-2 font-semibold">Valor</th>
               <th className="p-2 font-semibold">Res.</th>
@@ -116,7 +116,7 @@ export const AdminBetsLogTab: React.FC<Props> = ({ onError }) => {
             {bets.map((b) => (
               <tr key={b.id} className="border-t border-tuao-dark-800/80 align-top">
                 <td className="p-2 whitespace-nowrap text-tuao-text-secondary">
-                  {new Date(b.createdAt).toLocaleString('pt-PT')}
+                  {new Date(b.createdAt).toLocaleString('pt-BR')}
                 </td>
                 <td className="p-2">
                   <span className="font-medium text-white">{b.user.username}</span>

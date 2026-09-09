@@ -2,7 +2,7 @@ const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io';
 
 export class ApiSportsConfigError extends Error {
   constructor() {
-    super('APISPORTS_FOOTBALL_KEY não está configurada (registo gratuito em https://dashboard.api-football.com/)');
+    super('APISPORTS_FOOTBALL_KEY não está configurada (registro gratuito em https://dashboard.api-football.com/)');
     this.name = 'ApiSportsConfigError';
   }
 }

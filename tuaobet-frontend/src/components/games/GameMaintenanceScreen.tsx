@@ -14,7 +14,7 @@ export function GameMaintenanceScreen({ gameName }: Props) {
       <p className="mt-6 text-xs font-bold uppercase tracking-wider text-amber-400">Em manutenção</p>
       <h1 className="mt-2 text-3xl font-black text-white">{gameName}</h1>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-tuao-text-secondary">
-        Este jogo está temporariamente indisponível. Estamos a fazer melhorias — volta em breve.
+        Este jogo está temporariamente indisponível. Estamos fazendo melhorias — volte em breve.
       </p>
       <Link
         to="/#jogos-originais"

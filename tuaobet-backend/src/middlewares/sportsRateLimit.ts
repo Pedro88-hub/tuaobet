@@ -10,6 +10,6 @@ export const sportsRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? 'unknown'),
   message: {
-    message: 'Muitos pedidos de dados desportivos. Aguarde um momento.',
+    message: 'Muitas solicitações de dados esportivos. Aguarde um momento.',
   },
 });

@@ -16,7 +16,7 @@ export function LoginModal() {
       isOpen={isLoginModalOpen}
       onClose={closeLoginModal}
       title="Entrar"
-      subtitle="Usa o teu e-mail e palavra-passe para continuar a jogar."
+      subtitle="Use seu e-mail e senha para continuar a jogar."
       headerIcon={<LogIn size={20} strokeWidth={2} />}
     >
       <AuthForms mode="login" onSwitchMode={handleSwitchToRegister} />

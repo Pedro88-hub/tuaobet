@@ -12,7 +12,7 @@ const steps = [
   { icon: UserPlus, label: 'Cadastre-se' },
   { icon: Wallet, label: 'Deposite' },
   { icon: Gamepad2, label: 'Jogue' },
-  { icon: Gift, label: 'Desbloqueie a tua recompensa' },
+  { icon: Gift, label: 'Desbloqueie sua recompensa' },
 ] as const;
 
 export const HomeHero: React.FC = () => {
@@ -41,7 +41,7 @@ export const HomeHero: React.FC = () => {
             Bem-vindo à Tuão Bet!
           </h1>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-tuao-text-secondary md:text-base">
-            Cadastra-te e desbloqueia a tua experiência exclusiva — jogos originais, esportes e levantamentos rápidos.
+            Cadastre-se e desbloqueie sua experiência exclusiva — jogos originais, esportes e saques rápidos.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             {isAuthenticated ? (
