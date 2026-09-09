@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
+import { TuaoLogoMark } from '../components/brand/TuaoLogoMark';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminBannersTab } from '../components/admin/AdminBannersTab';
 import { AdminAnnouncementsTab } from '../components/admin/AdminAnnouncementsTab';
@@ -29,9 +30,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="border-b border-tuao-dark-800 bg-tuao-dark-900/80">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between gap-3 px-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-tuao-primary to-cyan-600">
-              <span className="text-sm font-extrabold leading-none text-tuao-dark-950">T</span>
-            </div>
+            <TuaoLogoMark className="h-8 w-8 rounded-md" />
             <div className="leading-tight">
               <p className="text-sm font-black tracking-tight text-white">
                 TUÃO<span className="text-tuao-primary">BET</span>

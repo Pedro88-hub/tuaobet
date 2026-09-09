@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 import type { DoubleColor } from '../../hooks/useDoubleGame';
+import tuaoLogo from '../../assets/tuao-logo.png';
 
 /** Classes de cor iguais aos quadrados da roleta (número 0 = branco, 1–7 “vermelho” com tuao-primary na UI, 8–14 preto). */
 export function doubleTileClassesForNumber(num: number): string {
@@ -44,8 +45,14 @@ export function DoubleRouletteTile({ number, variant, className, style }: Double
     if (number === 0) {
       return (
         <div className={cn(baseTile, 'text-xl', colorClass, className)} style={style}>
-          <div className="box-border flex aspect-square w-[min(74%,3.35rem)] shrink-0 items-center justify-center rounded-full border-2 border-tuao-primary bg-white shadow-[0_0_22px_rgba(0,240,255,0.45)]">
-            <span className="text-[clamp(1.05rem,3.8vmin,1.5rem)] font-black leading-none text-black">T</span>
+          <div className="box-border flex aspect-square w-[min(74%,3.35rem)] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-tuao-primary bg-white shadow-[0_0_22px_rgba(0,240,255,0.45)]">
+            <img
+              src={tuaoLogo}
+              alt=""
+              draggable={false}
+              className="h-[82%] w-[82%] select-none object-contain"
+              aria-hidden
+            />
           </div>
         </div>
       );
@@ -64,8 +71,14 @@ export function DoubleRouletteTile({ number, variant, className, style }: Double
   return (
     <div className={cn(compactShell, colorClass, className)} style={style}>
       {number === 0 ? (
-        <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 border-tuao-primary bg-white shadow-[0_0_12px_rgba(0,240,255,0.4)]">
-          <span className="text-[9px] font-black leading-none text-black">T</span>
+        <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-tuao-primary bg-white shadow-[0_0_12px_rgba(0,240,255,0.4)]">
+          <img
+            src={tuaoLogo}
+            alt=""
+            draggable={false}
+            className="h-[78%] w-[78%] select-none object-contain"
+            aria-hidden
+          />
         </div>
       ) : (
         number

@@ -19,6 +19,7 @@ import {
   Spade,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { TuaoLogoMark } from '../brand/TuaoLogoMark';
 import { useAuth } from '../../context/AuthContext';
 import { BACCARAT_IN_MAINTENANCE } from '../../lib/gameMaintenance';
 
@@ -176,9 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isMobileOpen, clos
       <div className="flex min-h-0 flex-1 flex-col lg:hidden">
         <div className="flex h-14 shrink-0 items-center justify-between px-4 pt-2">
           <Link to="/" onClick={closeMobile} className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-tuao-primary to-cyan-600 shadow-[0_0_14px_rgba(0,240,255,0.4)]">
-              <span className="font-black text-sm leading-none text-tuao-dark-950">T</span>
-            </div>
+            <TuaoLogoMark className="h-8 w-8 shadow-[0_0_14px_rgba(0,240,255,0.4)]" />
             <span className="text-lg font-black lowercase tracking-tight text-white">
               tuão<span className="text-tuao-primary">bet</span>
             </span>
