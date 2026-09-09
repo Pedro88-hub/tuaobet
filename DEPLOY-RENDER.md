@@ -50,6 +50,6 @@ $env:VITE_API_URL = "https://tuaobet-api.onrender.com"
 
 - A API no Render **dorme** ~15 min sem tráfego; o 1º pedido pode demorar 30–60s.
 - O workflow [`.github/workflows/keep-api-awake.yml`](.github/workflows/keep-api-awake.yml) faz ping a `/health` a cada 12 min (opcional: secret `API_HEALTH_URL`).
-- O histórico do Crash (últimos 400) fica no Postgres (`CrashRoundResult`) e sobrevive a cold starts.
+- O histórico do Crash e do Double (últimos 400 cada) fica no Postgres (`CrashRoundResult` / `DoubleRoundResult`) e sobrevive a cold starts.
 - Neon free pode suspender projetos inativos; abre o dashboard e “wake” se preciso.
 - Não precisas do Docker/túnel no PC para amigos usarem o site (só se quiseres desenvolver localmente).

@@ -10,6 +10,7 @@ import { GameCountdownBar, DOUBLE_COUNTDOWN_SECONDS } from '../components/games/
 import { DoubleRouletteTile } from '../components/games/DoubleRouletteTile';
 import { DoubleColorBetCard } from '../components/games/DoubleColorBetCard';
 import { ProvablyFairDoubleStrip } from '../components/games/ProvablyFairStrip';
+import tuaoLogo from '../assets/tuao-logo.png';
 import {
   isCrashSoundMuted,
   onCrashSoundMuteChange,
@@ -503,23 +504,8 @@ export function DoubleGame() {
 
           {/* Visualizador: histórico no topo (mobile, como Crash) → countdown → roleta */}
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-blaze-panel lg:min-h-[480px] lg:bg-tuao-dark-900">
-            {/* Giros anteriores — primeiro no mobile */}
+            {/* Histórico — mesma linha que o Crash */}
             <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2 lg:bg-tuao-dark-950/50 lg:py-2.5">
-              <div className="mb-2 hidden items-center justify-between gap-3 lg:flex">
-                <span className="text-[10px] font-bold uppercase leading-none tracking-wider text-tuao-text-secondary sm:text-[11px]">
-                  Giros anteriores
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setRoundsHistoryOpen(true)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-900 text-tuao-text-secondary transition-colors hover:border-tuao-primary/40 hover:text-tuao-primary"
-                  title="Ver histórico de giros"
-                  aria-label="Ver histórico de giros"
-                >
-                  <BarChart2 className="h-4 w-4" strokeWidth={2.2} />
-                </button>
-              </div>
-
               <div className="flex min-h-8 min-w-0 items-center gap-1.5">
                 <div
                   dir="rtl"
@@ -527,7 +513,7 @@ export function DoubleGame() {
                 >
                   {history.length === 0 ? (
                     <span dir="ltr" className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
-                      Ainda sem histórico nesta sessão.
+                      Ainda sem giros registrados.
                     </span>
                   ) : (
                     /* RTL: começa à direita (junto ao botão); mais recente → esquerda com os mais antigos */
@@ -547,7 +533,10 @@ export function DoubleGame() {
                 <button
                   type="button"
                   onClick={() => setRoundsHistoryOpen(true)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-primary/40 hover:text-tuao-primary lg:hidden"
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 text-tuao-text-secondary transition-colors',
+                    'bg-blaze-panel hover:border-tuao-primary/40 hover:text-tuao-primary lg:bg-[#0c1218]'
+                  )}
                   title="Ver histórico de giros"
                   aria-label="Ver histórico de giros"
                 >
@@ -782,7 +771,12 @@ function ColumnColorIcon({ color }: { color: DoubleColor }) {
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white shadow-[0_0_12px_rgba(255,255,255,0.12)] ring-1 ring-black/10"
         aria-hidden
       >
-        <span className="text-[9px] font-black uppercase leading-none text-tuao-dark-950">Tuao</span>
+        <img
+          src={tuaoLogo}
+          alt=""
+          draggable={false}
+          className="h-7 w-7 select-none object-contain"
+        />
       </div>
     );
   }

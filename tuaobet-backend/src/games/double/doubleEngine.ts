@@ -344,19 +344,15 @@ export const initDoubleGame = (io: Server) => {
     history.unshift({ number: resultNumber, color });
     if (history.length > DOUBLE_HISTORY_MAX) history.pop();
 
-    try {
-      await persistDoubleResult(resultNumber, color, doubleRoundId);
-    } catch (e) {
-      console.error('[double] falha ao persistir histórico:', e);
-    }
-
     const pub = doubleCommitPublic;
     const sec = doubleRoundSecret;
+    const settledRoundId = doubleRoundId;
 
+    // Emitir imediatamente para a UI não esperar o Postgres.
     io.emit('double:state', {
       state: 'RESULT',
       countdown: 0,
-      roundId: doubleRoundId,
+      roundId: settledRoundId,
       serverSeedHash: pub?.serverSeedHash,
       resultNumber,
       color,
@@ -366,10 +362,18 @@ export const initDoubleGame = (io: Server) => {
       color,
       history,
       winners,
-      roundId: doubleRoundId,
-      serverSeed: sec?.roundId === doubleRoundId ? sec.serverSeed : undefined,
-      serverSeedHash: pub?.roundId === doubleRoundId ? pub.serverSeedHash : undefined,
+      roundId: settledRoundId,
+      serverSeed: sec?.roundId === settledRoundId ? sec.serverSeed : undefined,
+      serverSeedHash: pub?.roundId === settledRoundId ? pub.serverSeedHash : undefined,
     });
+
+    void (async () => {
+      try {
+        await persistDoubleResult(resultNumber, color, settledRoundId);
+      } catch (e) {
+        console.error('[double] falha ao persistir histórico:', e);
+      }
+    })();
 
     setTimeout(() => doubleLoop(), 3000);
   };
@@ -605,8 +609,10 @@ export const initDoubleGame = (io: Server) => {
   void (async () => {
     try {
       history = await loadDoubleHistoryFromDb();
+      console.log(`[double] histórico carregado: ${history.length} rondas`);
     } catch (e) {
       console.error('[double] falha ao carregar histórico:', e);
+      history = [];
     }
     doubleLoop();
   })();

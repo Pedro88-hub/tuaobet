@@ -426,7 +426,7 @@ export function CrashGame() {
                 >
                   {history.length === 0 ? (
                     <span dir="ltr" className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
-                      Ainda sem histórico nesta sessão.
+                      Ainda sem rodadas registradas.
                     </span>
                   ) : (
                     /* RTL: começa à direita (junto ao botão); mais recente → esquerda com os mais antigos */
