@@ -148,17 +148,17 @@ export function CrashGame() {
 
   return (
     <Layout>
-      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-0 p-2 pb-8 text-white sm:p-4">
-        <div className="flex min-w-0 flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:flex-row lg:bg-tuao-dark-900">
+      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-0 p-0 text-white lg:p-4 lg:pb-8">
+        <div className="flex min-w-0 max-lg:h-[calc(100dvh-11rem)] max-lg:min-h-0 flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:h-auto lg:flex-row lg:bg-tuao-dark-900">
           {/* Painel de apostas — em mobile fica abaixo do gráfico (estilo app) */}
           <div className="flex min-h-0 w-full shrink-0 flex-col border-t border-tuao-dark-800 bg-blaze-panel lg:w-[300px] lg:border-b-0 lg:border-r lg:border-t-0 lg:bg-tuao-dark-900">
-            <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4">
+            <div className="shrink-0 px-3 pb-1.5 pt-2 sm:px-4 sm:pb-2 sm:pt-3">
               <div className="flex rounded-lg border border-tuao-dark-800 bg-[#1a242d] p-1 lg:bg-tuao-dark-950">
                 <button
                   type="button"
                   onClick={() => setBetMode('normal')}
                   className={cn(
-                    'flex-1 rounded-md py-2.5 text-sm font-bold transition-colors',
+                    'flex-1 rounded-md py-2 text-sm font-bold transition-colors sm:py-2.5',
                     betMode === 'normal'
                       ? 'bg-[#2a3540] text-white shadow-sm lg:bg-tuao-dark-800'
                       : 'text-tuao-text-secondary hover:text-white'
@@ -170,7 +170,7 @@ export function CrashGame() {
                   type="button"
                   onClick={() => setBetMode('auto')}
                   className={cn(
-                    'flex-1 rounded-md py-2.5 text-sm font-bold transition-colors',
+                    'flex-1 rounded-md py-2 text-sm font-bold transition-colors sm:py-2.5',
                     betMode === 'auto'
                       ? 'bg-[#2a3540] text-white shadow-sm lg:bg-tuao-dark-800'
                       : 'text-tuao-text-secondary hover:text-white'
@@ -182,9 +182,9 @@ export function CrashGame() {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-2 sm:space-y-4 sm:px-4 sm:pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
                 <div className="flex gap-2">
-                  <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary">
+                  <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12">
                     <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
                     <input
                       type="number"
@@ -202,7 +202,7 @@ export function CrashGame() {
                     type="button"
                     onClick={handleHalve}
                     disabled={amountDisabled}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50 sm:h-12 sm:w-12"
                     aria-label="Metade do valor"
                   >
                     ½
@@ -211,7 +211,7 @@ export function CrashGame() {
                     type="button"
                     onClick={handleDoubleAmt}
                     disabled={amountDisabled}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-tuao-dark-800 text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50 sm:h-12 sm:w-12"
                     aria-label="Dobrar o valor"
                   >
                     2x
@@ -225,7 +225,7 @@ export function CrashGame() {
                         onChange={(e) => setAutoCashout(e.target.value)}
                         placeholder="Auto retirar (multiplicador)"
                         aria-label="Auto retirar (multiplicador)"
-                        className="h-12 w-full border-tuao-dark-700 bg-[#1a242d] text-base font-bold placeholder:text-xs placeholder:font-semibold focus:border-tuao-primary sm:placeholder:text-sm lg:bg-tuao-dark-950"
+                        className="h-11 w-full border-tuao-dark-700 bg-[#1a242d] text-base font-bold placeholder:text-xs placeholder:font-semibold focus:border-tuao-primary sm:h-12 sm:placeholder:text-sm lg:bg-tuao-dark-950"
                       />
                     </div>
                     <button
@@ -243,7 +243,7 @@ export function CrashGame() {
                     type="button"
                     size="lg"
                     className={cn(
-                      'h-12 w-full text-sm font-black uppercase tracking-wider',
+                      'h-11 w-full text-sm font-black uppercase tracking-wider sm:h-12',
                       gameState === 'RUNNING' && hasServerBet && !serverCashedOut
                         ? 'border border-emerald-500/35 bg-emerald-600 text-white hover:bg-emerald-500'
                         : hasServerBet && gameState === 'COUNTDOWN'
@@ -296,7 +296,7 @@ export function CrashGame() {
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-1">
+              <div className="flex shrink-0 items-center justify-between px-3 pb-2 pt-0.5 sm:px-4 sm:pb-3 sm:pt-1">
                 <button
                   type="button"
                   onClick={toggleFullscreen}
@@ -324,7 +324,7 @@ export function CrashGame() {
 
           {/* Visualizador — histórico no topo no mobile (referência Blaze) */}
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-blaze-panel lg:min-h-[640px] lg:bg-tuao-dark-900">
-            <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2.5 lg:bg-tuao-dark-950/50">
+            <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2 lg:bg-tuao-dark-950/50 lg:py-2.5">
               <div className="flex min-h-8 min-w-0 items-center gap-1.5">
                 <div
                   dir="rtl"
@@ -369,7 +369,7 @@ export function CrashGame() {
               </div>
             </div>
 
-            <div className="relative flex min-h-[280px] min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 pt-2 sm:min-h-[320px] lg:min-h-[420px]">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 pt-2 max-lg:min-h-[140px] lg:min-h-[420px]">
               <div className="pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
               <div
                 className={cn(
