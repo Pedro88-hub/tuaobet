@@ -1,32 +1,26 @@
 import { useId } from 'react';
 import { cn } from '../../../lib/utils';
-
-const HEX_CLIP =
-  'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+import crashPlane from '../../../assets/crash-plane.png';
 
 /**
- * Marcador na ponta da curva — hexágono com “T” como o ícone da navbar TuãoBet.
- * O “T” fica num box fixo centrado para não “escapar” do hex em voos longos / fontes sintéticas.
+ * Marcador na ponta da curva — avião TuãoBet (substitui o hexágono com “T”).
  */
 export function CrashTuaoLogoMark({ className }: { className?: string }) {
   return (
-    <div className={cn('relative flex h-8 w-8 shrink-0 items-center justify-center', className)}>
-      <div className="pointer-events-none absolute -inset-1 rounded-full bg-tuao-primary/20 blur-md" aria-hidden />
-      <div
-        className="pointer-events-none absolute left-0 top-1/2 h-0.5 w-4 -translate-x-full -translate-y-1/2 bg-gradient-to-l from-tuao-primary/85 via-tuao-primary/35 to-transparent opacity-80"
+    <div
+      className={cn(
+        'relative flex h-11 w-[4.75rem] shrink-0 items-center justify-center sm:h-14 sm:w-24',
+        className,
+      )}
+    >
+      <div className="pointer-events-none absolute -inset-2 rounded-full bg-tuao-primary/18 blur-lg" aria-hidden />
+      <img
+        src={crashPlane}
+        alt=""
+        draggable={false}
+        className="relative z-10 h-full w-full select-none object-contain drop-shadow-[0_0_16px_rgba(0,240,255,0.5)]"
         aria-hidden
       />
-      <div
-        className="relative z-10 flex h-8 w-8 items-center justify-center overflow-hidden bg-gradient-to-br from-tuao-primary to-cyan-600 shadow-[0_0_20px_rgba(0,240,255,0.55),inset_0_1px_0_rgba(255,255,255,0.35)]"
-        style={{ clipPath: HEX_CLIP }}
-      >
-        <span
-          className="flex h-5 w-5 select-none items-center justify-center text-[13px] font-extrabold leading-none text-tuao-dark-950"
-          aria-hidden
-        >
-          T
-        </span>
-      </div>
     </div>
   );
 }

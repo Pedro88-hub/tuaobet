@@ -10,11 +10,11 @@ const VIEW_WINDOW_SEC = 14;
 const MIN_SPAN_EARLY_SEC = 8;
 
 /**
- * Margem do plot (%) para o marcador hex (~32px + glow) não ser cortado em voos longos,
+ * Margem do plot (%) para o avião (~96px + glow) não ser cortado em voos longos,
  * quando a ponta cola na borda direita (câmara a deslizar).
  */
-const PLOT_PAD_X = 5;
-const PLOT_PAD_Y = 6;
+const PLOT_PAD_X = 8;
+const PLOT_PAD_Y = 9;
 
 const clamp01 = (v: number) => Math.min(100, Math.max(0, v));
 
