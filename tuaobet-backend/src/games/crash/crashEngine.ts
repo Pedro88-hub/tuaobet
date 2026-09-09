@@ -245,24 +245,26 @@ export const initCrashGame = (io: Server) => {
         const explodedPoint = crashPoint;
         const explodedRoundId = runningRoundId;
 
+        // Emitir imediatamente para a UI não congelar no último tick enquanto settle/persist rodam.
+        io.emit('crash:exploded', {
+          crashPoint: explodedPoint,
+          history: crashHistory,
+          roundId: explodedRoundId,
+          serverSeed: secret?.roundId === explodedRoundId ? secret.serverSeed : undefined,
+          serverSeedHash: pub?.roundId === explodedRoundId ? pub.serverSeedHash : undefined,
+        });
+
         void (async () => {
           try {
             await settleLosingBets(io);
           } catch {
-            /* continua a mostrar o crash na UI */
+            /* crash já foi mostrado na UI */
           }
           try {
             await persistCrashResult(explodedPoint, explodedRoundId);
           } catch (e) {
             console.error('[crash] falha ao persistir histórico:', e);
           }
-          io.emit('crash:exploded', {
-            crashPoint: explodedPoint,
-            history: crashHistory,
-            roundId: explodedRoundId,
-            serverSeed: secret?.roundId === explodedRoundId ? secret.serverSeed : undefined,
-            serverSeedHash: pub?.roundId === explodedRoundId ? pub.serverSeedHash : undefined,
-          });
           setTimeout(() => gameLoop(), 6000);
         })();
       } else {

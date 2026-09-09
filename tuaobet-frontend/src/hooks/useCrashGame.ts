@@ -98,7 +98,7 @@ export function useCrashGame() {
     });
 
     socket.on('crash:tick', (val: number) => {
-      setGameState('RUNNING');
+      setGameState((prev) => (prev === 'RUNNING' ? prev : 'RUNNING'));
       setMultiplier(val);
     });
 
