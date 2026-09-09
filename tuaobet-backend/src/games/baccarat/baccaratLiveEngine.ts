@@ -11,6 +11,7 @@ import {
   type BaccaratOutcome,
   type Card,
 } from './baccaratEngine';
+import { isBaccaratInMaintenance } from '../../config/gameMaintenance';
 
 type BaccaratPhase = 'BETTING' | 'DEALING' | 'RESULT';
 
@@ -78,6 +79,10 @@ function emitSnapshot(socket: Socket) {
 }
 
 export const initBaccaratGame = (io: Server) => {
+  if (isBaccaratInMaintenance()) {
+    console.log('Baccarat em manutenção — motor não iniciado');
+    return;
+  }
 
   const loop = () => {
     phase = 'BETTING';

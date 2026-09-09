@@ -18,6 +18,7 @@ import {
   computeTotalPayoutMulti,
   playRound,
 } from '../games/baccarat/baccaratEngine';
+import { isBaccaratInMaintenance } from '../config/gameMaintenance';
 
 function rollDiceFloat(): number {
   return randomInt(0, 1_000_000) / 10_000;
@@ -375,6 +376,13 @@ function parseBaccaratBets(body: Record<string, unknown>): BaccaratBetSplit | nu
 }
 
 export async function baccaratPlay(req: AuthRequest, res: Response) {
+  if (isBaccaratInMaintenance()) {
+    return res.status(503).json({
+      code: 'GAME_MAINTENANCE',
+      message: 'Baccarat está em manutenção',
+    });
+  }
+
   const userId = req.userId!;
   const split = parseBaccaratBets(req.body as Record<string, unknown>);
   if (!split) {

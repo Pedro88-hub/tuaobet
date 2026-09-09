@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Rocket, Disc, Bomb, Dices, LayoutGrid, ChevronRight, Spade } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { BACCARAT_IN_MAINTENANCE } from '../../lib/gameMaintenance';
 
 type GameItem = {
   name: string;
@@ -10,6 +11,7 @@ type GameItem = {
   icon: React.ElementType;
   gradient: string;
   accent: string;
+  maintenance?: boolean;
 };
 
 const games: GameItem[] = [
@@ -60,6 +62,7 @@ const games: GameItem[] = [
     icon: Spade,
     gradient: 'from-emerald-600/35 via-tuao-dark-900 to-tuao-dark-950',
     accent: 'text-emerald-400',
+    maintenance: BACCARAT_IN_MAINTENANCE,
   },
 ];
 
@@ -89,7 +92,9 @@ export const OriginalGamesGrid: React.FC = () => {
             to={g.path}
             className={cn(
               'group relative overflow-hidden rounded-2xl border border-tuao-dark-700 bg-tuao-dark-900 p-6 transition-all',
-              'hover:border-tuao-primary/45 hover:shadow-neon'
+              g.maintenance
+                ? 'hover:border-amber-500/40'
+                : 'hover:border-tuao-primary/45 hover:shadow-neon'
             )}
           >
             <div
@@ -100,7 +105,14 @@ export const OriginalGamesGrid: React.FC = () => {
             />
             <div className="relative flex items-start justify-between gap-4">
               <div>
-                <p className={cn('text-xs font-bold uppercase tracking-wider', g.accent)}>{g.name}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={cn('text-xs font-bold uppercase tracking-wider', g.accent)}>{g.name}</p>
+                  {g.maintenance && (
+                    <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-300">
+                      Manutenção
+                    </span>
+                  )}
+                </div>
                 <p className="mt-2 text-lg font-bold text-white">{g.tagline}</p>
               </div>
               <div
@@ -112,8 +124,13 @@ export const OriginalGamesGrid: React.FC = () => {
                 <g.icon size={22} className={g.accent} />
               </div>
             </div>
-            <div className="relative mt-6 flex items-center text-sm font-semibold text-tuao-primary">
-              Jogar agora
+            <div
+              className={cn(
+                'relative mt-6 flex items-center text-sm font-semibold',
+                g.maintenance ? 'text-amber-300' : 'text-tuao-primary'
+              )}
+            >
+              {g.maintenance ? 'Em manutenção' : 'Jogar agora'}
               <ChevronRight
                 size={18}
                 className="transition-transform group-hover:translate-x-0.5"

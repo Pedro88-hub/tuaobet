@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Info, Maximize2, Wifi } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
+import { GameMaintenanceScreen } from '../components/games/GameMaintenanceScreen';
 import { cn } from '../lib/utils';
+import { BACCARAT_IN_MAINTENANCE } from '../lib/gameMaintenance';
 import {
   useBaccaratGame,
   BACCARAT_BETTING_SECONDS,
@@ -26,6 +28,17 @@ const EMPTY_CHIPS: Record<keyof BetStacks, PlacedChip[]> = {
 };
 
 export function BaccaratGame() {
+  if (BACCARAT_IN_MAINTENANCE) {
+    return (
+      <Layout>
+        <GameMaintenanceScreen gameName="Baccarat" />
+      </Layout>
+    );
+  }
+  return <BaccaratGameLive />;
+}
+
+function BaccaratGameLive() {
   const { isAuthenticated, openLoginModal, user } = useAuth();
   const {
     gamePhase,

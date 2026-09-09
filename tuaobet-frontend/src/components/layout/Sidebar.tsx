@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
+import { BACCARAT_IN_MAINTENANCE } from '../../lib/gameMaintenance';
 
 interface SidebarProps {
   isExpanded: boolean;
@@ -36,13 +37,27 @@ const popularLeagues = [
   { label: 'Bundesliga', league: 'bundesliga' },
 ] as const;
 
-const games = [
+type SidebarGame = {
+  name: string;
+  icon: React.ElementType;
+  path: string;
+  color: string;
+  maintenance?: boolean;
+};
+
+const games: SidebarGame[] = [
   { name: 'Crash', icon: Rocket, path: '/crash', color: 'text-red-500' },
   { name: 'Double', icon: Disc, path: '/double', color: 'text-white' },
   { name: 'Mines', icon: Bomb, path: '/mines', color: 'text-yellow-500' },
   { name: 'Dice', icon: Dices, path: '/dice', color: 'text-blue-500' },
   { name: 'Plinko', icon: LayoutGrid, path: '/plinko', color: 'text-pink-500' },
-  { name: 'Baccarat', icon: Spade, path: '/baccarat', color: 'text-emerald-400' },
+  {
+    name: 'Baccarat',
+    icon: Spade,
+    path: '/baccarat',
+    color: 'text-emerald-400',
+    maintenance: BACCARAT_IN_MAINTENANCE,
+  },
   { name: 'Justiça', icon: Scale, path: '/fairness', color: 'text-tuao-primary' },
 ];
 
@@ -250,7 +265,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isMobileOpen, clos
                           )}
                         >
                           <game.icon size={20} className="shrink-0 text-tuao-text-secondary" strokeWidth={2} />
-                          <span className="text-sm font-medium">{game.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{game.name}</span>
+                          {game.maintenance && (
+                            <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-300">
+                              Manutenção
+                            </span>
+                          )}
                         </Link>
                       );
                     })
@@ -325,9 +345,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isMobileOpen, clos
                     {game.name}
                   </span>
 
+                  {game.maintenance && (isExpanded || isMobileOpen) && (
+                    <span className="ml-auto shrink-0 rounded-full border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-300">
+                      Manutenção
+                    </span>
+                  )}
+
                   {!isExpanded && !isMobileOpen && (
                     <div className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded border border-tuao-dark-700 bg-tuao-dark-800 px-2 py-1 text-xs text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                      {game.name}
+                      {game.maintenance ? `${game.name} · manutenção` : game.name}
                     </div>
                   )}
                 </Link>
