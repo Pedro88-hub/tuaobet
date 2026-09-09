@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '../services/socket';
 import { emitCoinBurst } from '../lib/gameFx';
-import { playCrashSound } from '../lib/crashSounds';
+import { playCrashSound, stopCrashSound } from '../lib/crashSounds';
 
 export type GameState = 'IDLE' | 'COUNTDOWN' | 'RUNNING' | 'CRASHED';
 
@@ -92,6 +92,9 @@ export function useCrashGame() {
       }) => {
         setGameState(data.state);
         setCountdown(data.countdown ?? 0);
+        if (data.state === 'RUNNING') {
+          stopCrashSound('bet');
+        }
         if (data.state === 'IDLE' || data.state === 'COUNTDOWN') {
           setMultiplier(1.0);
         } else if (
@@ -229,6 +232,7 @@ export function useCrashGame() {
       setServerPayout(0);
       setServerBetAmount(0);
       setLastError(null);
+      stopCrashSound('bet');
       playCrashSound('cancel');
       emitCoinBurst({ direction: 'in', count: 6 });
     });
