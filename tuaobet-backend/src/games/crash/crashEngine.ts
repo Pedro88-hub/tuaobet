@@ -362,15 +362,28 @@ export const initCrashGame = (io: Server) => {
         return;
       }
 
-      const forCurrentRound = gameState === 'COUNTDOWN';
-      const forNextRound =
-        gameState === 'RUNNING' || gameState === 'CRASHED' || gameState === 'IDLE';
-
-      if (!forCurrentRound && !forNextRound) {
+      const canBetNow =
+        gameState === 'COUNTDOWN' ||
+        gameState === 'RUNNING' ||
+        gameState === 'CRASHED' ||
+        gameState === 'IDLE';
+      if (!canBetNow) {
         socket.emit('crash:error', { code: 'CLOSED' });
         return;
       }
-      if (betsThisRound.has(userId) || pendingNextBets.has(userId)) {
+
+      if (pendingNextBets.has(userId)) {
+        socket.emit('crash:error', { code: 'ALREADY_BET' });
+        return;
+      }
+
+      const existingRoundBet = betsThisRound.get(userId);
+      // Residual após saque (RUNNING) ou rodada rebentada (CRASHED) não bloqueia fila da próxima.
+      const blocksNewBet =
+        existingRoundBet != null &&
+        (gameState === 'COUNTDOWN' ||
+          (gameState === 'RUNNING' && !existingRoundBet.cashedOut));
+      if (blocksNewBet) {
         socket.emit('crash:error', { code: 'ALREADY_BET' });
         return;
       }
@@ -410,7 +423,71 @@ export const initCrashGame = (io: Server) => {
           });
         });
 
-        if (forCurrentRound) {
+        // Decisão pós-débito: evita saltar rodada se CRASHED→COUNTDOWN durante o await.
+        const placeInCurrentRound = gameState === 'COUNTDOWN';
+        const placeInNextRound =
+          gameState === 'RUNNING' || gameState === 'CRASHED' || gameState === 'IDLE';
+
+        if (!placeInCurrentRound && !placeInNextRound) {
+          const refund = Math.round(amount * 100) / 100;
+          try {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(userId, refund, 'Crash — aposta fechada', tx);
+              await tx.bet.update({
+                where: { id: betRow.id },
+                data: { result: 'cancelled', payout: 0, multiplier: null },
+              });
+            });
+            pushWalletBalance(userId);
+          } catch {
+            // Saldo reconciliado operacionalmente se o refund falhar
+          }
+          socket.emit('crash:error', { code: 'CLOSED' });
+          return;
+        }
+
+        if (pendingNextBets.has(userId)) {
+          const refund = Math.round(amount * 100) / 100;
+          try {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(userId, refund, 'Crash — aposta duplicada', tx);
+              await tx.bet.update({
+                where: { id: betRow.id },
+                data: { result: 'cancelled', payout: 0, multiplier: null },
+              });
+            });
+            pushWalletBalance(userId);
+          } catch {
+            // Saldo reconciliado operacionalmente se o refund falhar
+          }
+          socket.emit('crash:error', { code: 'ALREADY_BET' });
+          return;
+        }
+
+        const existingAfterDebit = betsThisRound.get(userId);
+        if (
+          placeInCurrentRound &&
+          existingAfterDebit != null &&
+          !existingAfterDebit.cashedOut
+        ) {
+          const refund = Math.round(amount * 100) / 100;
+          try {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(userId, refund, 'Crash — aposta duplicada', tx);
+              await tx.bet.update({
+                where: { id: betRow.id },
+                data: { result: 'cancelled', payout: 0, multiplier: null },
+              });
+            });
+            pushWalletBalance(userId);
+          } catch {
+            // Saldo reconciliado operacionalmente se o refund falhar
+          }
+          socket.emit('crash:error', { code: 'ALREADY_BET' });
+          return;
+        }
+
+        if (placeInCurrentRound) {
           betsThisRound.set(userId, {
             userId,
             username: user.username,

@@ -17,27 +17,18 @@ import { ProvablyFairCrashStrip } from '../components/games/ProvablyFairStrip';
 import { CrashFlightChart } from '../components/games/crash/CrashFlightChart';
 import { useCrashDisplayMultiplier } from '../components/games/crash/useCrashDisplayMultiplier';
 import { levelFromXp, tierForLevel } from '../lib/xpDisplay';
+import {
+  formatCentsMask,
+  maskDigitsFromNumber,
+  numberFromMaskDigits,
+  sanitizeMaskDigits,
+} from '../lib/brlMask';
 
 const formatBrlAmount = (value: number) =>
   value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const formatMultiplierPt = (m: number) =>
   `${m.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
-
-/** Máscara BR da direita para a esquerda (centavos → 1.234,56). */
-function formatMultiplierMask(digits: string): string {
-  const cleaned = digits.replace(/\D/g, '');
-  if (!cleaned) return '';
-  const num = parseInt(cleaned, 10) / 100;
-  if (!Number.isFinite(num)) return '';
-  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function multiplierFromMaskDigits(digits: string): number {
-  const cleaned = digits.replace(/\D/g, '');
-  if (!cleaned) return NaN;
-  return parseInt(cleaned, 10) / 100;
-}
 
 const CRASH_HISTORY_MODAL_PAGE_SIZE = 20;
 
@@ -83,8 +74,8 @@ export function CrashGame() {
     cashout,
   } = useCrashGame();
 
-  const [betAmount, setBetAmount] = useState('');
-  /** Só dígitos; valor real = digits/100 (máscara RTL). */
+  /** Só dígitos; valor real = digits/100 (máscara RTL pt-BR). */
+  const [betAmountDigits, setBetAmountDigits] = useState('');
   const [autoCashoutDigits, setAutoCashoutDigits] = useState('');
   const [betMode, setBetMode] = useState<'normal' | 'auto'>('normal');
   const [lowerTab, setLowerTab] = useState<'jogadores' | 'descricao'>('jogadores');
@@ -92,8 +83,10 @@ export function CrashGame() {
   const [historyModalPage, setHistoryModalPage] = useState(0);
   const [soundMuted, setSoundMuted] = useState(() => isCrashSoundMuted());
 
-  const autoCashoutDisplay = formatMultiplierMask(autoCashoutDigits);
-  const autoCashoutValue = multiplierFromMaskDigits(autoCashoutDigits);
+  const betAmountDisplay = formatCentsMask(betAmountDigits);
+  const betAmountValue = numberFromMaskDigits(betAmountDigits);
+  const autoCashoutDisplay = formatCentsMask(autoCashoutDigits);
+  const autoCashoutValue = numberFromMaskDigits(autoCashoutDigits);
 
   // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
   const [timeLeft, setTimeLeft] = useState(countdown);
@@ -139,7 +132,7 @@ export function CrashGame() {
       openLoginModal();
       return;
     }
-    const amount = parseFloat(betAmount.trim() || '');
+    const amount = betAmountValue;
     if (queuedNextBet) {
       cancelBet();
       return;
@@ -177,16 +170,16 @@ export function CrashGame() {
   }, [gameState, hasServerBet, serverCashedOut, autoCashoutValue, multiplier, cashout]);
 
   const handleHalve = () =>
-    setBetAmount((prev) => {
-      const v = parseFloat(prev);
+    setBetAmountDigits((prev) => {
+      const v = numberFromMaskDigits(prev);
       if (!Number.isFinite(v) || v <= 0) return '';
-      return (v / 2).toFixed(2);
+      return maskDigitsFromNumber(v / 2);
     });
   const handleDoubleAmt = () =>
-    setBetAmount((prev) => {
-      const v = parseFloat(prev);
+    setBetAmountDigits((prev) => {
+      const v = numberFromMaskDigits(prev);
       if (!Number.isFinite(v)) return '';
-      return (v * 2).toFixed(2);
+      return maskDigitsFromNumber(v * 2);
     });
 
   const toggleFullscreen = useCallback(() => {
@@ -240,19 +233,18 @@ export function CrashGame() {
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-2 sm:space-y-4 sm:px-4 sm:pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
                 <div className="flex gap-2">
                   <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12">
-                    {!betAmount.trim() && (
+                    {!betAmountDigits && (
                       <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
                     )}
                     <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      value={betAmount}
-                      onChange={(e) => setBetAmount(e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      value={betAmountDisplay}
+                      onChange={(e) => setBetAmountDigits(sanitizeMaskDigits(e.target.value))}
                       disabled={amountDisabled}
                       aria-label="Quantia"
-                      className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-50"
+                      placeholder="0,00"
+                      className="min-w-0 flex-1 bg-transparent text-right text-base font-bold tabular-nums text-white outline-none placeholder:text-tuao-text-secondary/60 disabled:opacity-50"
                     />
                     <span className="shrink-0 text-sm font-semibold text-white">R$</span>
                   </div>
@@ -285,10 +277,7 @@ export function CrashGame() {
                         type="text"
                         inputMode="numeric"
                         value={autoCashoutDisplay}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 8);
-                          setAutoCashoutDigits(digits);
-                        }}
+                        onChange={(e) => setAutoCashoutDigits(sanitizeMaskDigits(e.target.value, 8))}
                         placeholder="0,00"
                         aria-label="Auto retirar (multiplicador)"
                         className="min-w-0 flex-1 bg-transparent text-right text-base font-bold tabular-nums text-white outline-none placeholder:text-tuao-text-secondary/60 disabled:opacity-50"
@@ -332,8 +321,8 @@ export function CrashGame() {
                           {(
                             serverBetAmount > 0
                               ? serverBetAmount
-                              : Number.isFinite(parseFloat(betAmount))
-                                ? parseFloat(betAmount)
+                              : Number.isFinite(betAmountValue)
+                                ? betAmountValue
                                 : 0
                           ).toFixed(2)}
                         </span>
@@ -347,8 +336,8 @@ export function CrashGame() {
                             {(
                               serverBetAmount > 0
                                 ? serverBetAmount
-                                : Number.isFinite(parseFloat(betAmount))
-                                  ? parseFloat(betAmount)
+                                : Number.isFinite(betAmountValue)
+                                  ? betAmountValue
                                   : 0
                             ).toFixed(2)}
                           </span>
@@ -364,8 +353,8 @@ export function CrashGame() {
                           {(
                             (serverBetAmount > 0
                               ? serverBetAmount
-                              : Number.isFinite(parseFloat(betAmount))
-                                ? parseFloat(betAmount)
+                              : Number.isFinite(betAmountValue)
+                                ? betAmountValue
                                 : 0) * multiplier
                           ).toFixed(2)}
                         </span>

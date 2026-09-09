@@ -45,6 +45,8 @@ export function useCrashGame() {
   const betAmountRef = useRef(serverBetAmount);
   const queuedNextBetRef = useRef(false);
   const hasServerBetRef = useRef(false);
+  const serverCashedOutRef = useRef(false);
+  const cashoutInFlightRef = useRef(false);
   const cancelSnapshotRef = useRef<{
     hasServerBet: boolean;
     queuedNextBet: boolean;
@@ -66,6 +68,10 @@ export function useCrashGame() {
   useEffect(() => {
     hasServerBetRef.current = hasServerBet;
   }, [hasServerBet]);
+
+  useEffect(() => {
+    serverCashedOutRef.current = serverCashedOut;
+  }, [serverCashedOut]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -105,6 +111,8 @@ export function useCrashGame() {
         }
         if (data.state === 'COUNTDOWN' && data.countdown === 6) {
           pendingActionRef.current = null;
+          cashoutInFlightRef.current = false;
+          serverCashedOutRef.current = false;
           setServerCashedOut(false);
           setServerPayout(0);
           // Fila promovida no servidor → bet-accepted; não apagar stake se já estava enfileirada.
@@ -140,11 +148,13 @@ export function useCrashGame() {
         serverSeedHash?: string;
       }) => {
         pendingActionRef.current = null;
+        cashoutInFlightRef.current = false;
         setGameState('CRASHED');
         setMultiplier(data.crashPoint);
         if (data.history) setHistory(data.history);
         // Mantém fila da próxima rodada; limpa só a aposta da rodada que acabou.
         setHasServerBet(false);
+        serverCashedOutRef.current = false;
         setServerCashedOut(false);
         if (!queuedNextBetRef.current) {
           setServerBetAmount(0);
@@ -190,12 +200,14 @@ export function useCrashGame() {
 
     socket.on('crash:bet-accepted', (data?: { amount?: number }) => {
       pendingActionRef.current = null;
+      cashoutInFlightRef.current = false;
       setQueuedNextBet(false);
       queuedNextBetRef.current = false;
       setHasServerBet(true);
       if (data?.amount != null && Number.isFinite(data.amount)) {
         setServerBetAmount(data.amount);
       }
+      serverCashedOutRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
       setLastError(null);
@@ -203,12 +215,14 @@ export function useCrashGame() {
 
     socket.on('crash:bet-queued', (data?: { amount?: number }) => {
       pendingActionRef.current = null;
+      cashoutInFlightRef.current = false;
       setQueuedNextBet(true);
       queuedNextBetRef.current = true;
       setHasServerBet(false);
       if (data?.amount != null && Number.isFinite(data.amount)) {
         setServerBetAmount(data.amount);
       }
+      serverCashedOutRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
       setLastError(null);
@@ -216,10 +230,12 @@ export function useCrashGame() {
 
     socket.on('crash:bet-cancelled', () => {
       pendingActionRef.current = null;
+      cashoutInFlightRef.current = false;
       cancelSnapshotRef.current = null;
       setHasServerBet(false);
       setQueuedNextBet(false);
       queuedNextBetRef.current = false;
+      serverCashedOutRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
       setServerBetAmount(0);
@@ -228,6 +244,8 @@ export function useCrashGame() {
 
     socket.on('crash:cashout-ok', (data: { multiplier: number; payout: number }) => {
       pendingActionRef.current = null;
+      cashoutInFlightRef.current = false;
+      serverCashedOutRef.current = true;
       setServerCashedOut(true);
       setServerPayout(data.payout);
       setLastError(null);
@@ -262,8 +280,15 @@ export function useCrashGame() {
         }
         cancelSnapshotRef.current = null;
       } else if (pending === 'cashout') {
-        setServerCashedOut(false);
-        setServerPayout(0);
+        cashoutInFlightRef.current = false;
+        // NO_BET no 2º emit = já sacou no servidor; não reabrir o botão Sacar.
+        if (code !== 'NO_BET') {
+          serverCashedOutRef.current = false;
+          setServerCashedOut(false);
+          setServerPayout(0);
+        } else {
+          return;
+        }
       }
 
       const map: Record<string, string> = {
@@ -306,7 +331,9 @@ export function useCrashGame() {
   const joinGame = useCallback((amount: number, state: GameState) => {
     setLastError(null);
     pendingActionRef.current = 'bet';
+    cashoutInFlightRef.current = false;
     setServerBetAmount(amount);
+    serverCashedOutRef.current = false;
     setServerCashedOut(false);
     setServerPayout(0);
     if (state === 'COUNTDOWN') {
@@ -342,10 +369,13 @@ export function useCrashGame() {
   }, []);
 
   const cashout = useCallback(() => {
+    if (serverCashedOutRef.current || cashoutInFlightRef.current) return;
     setLastError(null);
     pendingActionRef.current = 'cashout';
+    cashoutInFlightRef.current = true;
     const estimated =
       Math.round(betAmountRef.current * multiplierRef.current * 100) / 100;
+    serverCashedOutRef.current = true;
     setServerCashedOut(true);
     if (estimated > 0) setServerPayout(estimated);
     playCrashSound('cashout');
