@@ -24,6 +24,50 @@ function formatBalancePtBr(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function useAnimatedBalance(balance: number) {
+  const [display, setDisplay] = useState(balance);
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const displayRef = useRef(display);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    displayRef.current = display;
+  }, [display]);
+
+  useEffect(() => {
+    const from = displayRef.current;
+    const to = balance;
+    if (!Number.isFinite(to) || from === to) {
+      setDisplay(to);
+      return;
+    }
+    setFlash(to > from ? 'up' : 'down');
+    const flashTimer = window.setTimeout(() => setFlash(null), 450);
+    const duration = 420;
+    const start = performance.now();
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (to - from) * eased);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+        setDisplay(to);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      window.clearTimeout(flashTimer);
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [balance]);
+
+  return { display, flash };
+}
+
 function useClickOutside(
   ref: React.RefObject<HTMLElement | null>,
   onOutside: () => void,
@@ -46,6 +90,8 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const balance = user?.balance ?? 0;
+  const { display: animatedBalance, flash: balanceFlash } = useAnimatedBalance(balance);
 
   const [walletOpen, setWalletOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -81,7 +127,6 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
   const level = levelFromXp(xp);
   const tier = tierForLevel(level);
   const { pct: levelPct } = xpProgressInLevel(xp);
-  const balance = typeof user?.balance === 'number' ? user.balance : 0;
 
   const submitSearch = () => {
     const q = searchQuery.trim();
@@ -320,6 +365,7 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
             <div className="relative min-w-0" ref={walletRef}>
               <button
                 type="button"
+                data-wallet-balance
                 onClick={() => {
                   setWalletOpen((v) => !v);
                   setProfileOpen(false);
@@ -328,16 +374,26 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                 aria-expanded={walletOpen}
                 aria-haspopup="dialog"
                 aria-label="Carteira e saldo"
-                className="flex max-w-[10.5rem] min-w-0 items-center justify-center rounded-lg border border-tuao-dark-700/85 bg-tuao-dark-950 px-3 py-2 transition-colors hover:border-tuao-dark-600 sm:max-w-none sm:px-4 sm:py-2.5"
+                className={cn(
+                  'flex max-w-[10.5rem] min-w-0 items-center justify-center rounded-lg border border-tuao-dark-700/85 bg-tuao-dark-950 px-3 py-2 transition-colors hover:border-tuao-dark-600 sm:max-w-none sm:px-4 sm:py-2.5',
+                  balanceFlash === 'up' && 'border-emerald-500/60 text-emerald-300',
+                  balanceFlash === 'down' && 'border-red-500/60 text-red-300'
+                )}
               >
-                <span className="min-w-0 truncate text-center text-xs font-extrabold tabular-nums tracking-tight text-white sm:text-sm">
-                  R$ {formatBalancePtBr(balance)}
+                <span
+                  className={cn(
+                    'min-w-0 truncate text-center text-xs font-extrabold tabular-nums tracking-tight text-white transition-colors sm:text-sm',
+                    balanceFlash === 'up' && 'text-emerald-300',
+                    balanceFlash === 'down' && 'text-red-300'
+                  )}
+                >
+                  R$ {formatBalancePtBr(animatedBalance)}
                 </span>
               </button>
               {walletOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-tuao-dark-800 bg-tuao-dark-900 p-4 shadow-2xl">
                   <p className="text-[10px] font-black uppercase tracking-wider text-tuao-text-secondary">Saldo disponível</p>
-                  <p className="mt-1 text-xl font-black tabular-nums text-white">R$ {formatBalancePtBr(balance)}</p>
+                  <p className="mt-1 text-xl font-black tabular-nums text-white">R$ {formatBalancePtBr(animatedBalance)}</p>
                   <p className="mt-3 text-[11px] text-tuao-text-secondary">
                     Depósitos e levantamentos serão integrados em breve.
                   </p>

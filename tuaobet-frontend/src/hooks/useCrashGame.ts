@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '../services/socket';
+import { emitCoinBurst } from '../lib/gameFx';
+import { playCrashSound } from '../lib/crashSounds';
 
 export type GameState = 'IDLE' | 'COUNTDOWN' | 'RUNNING' | 'CRASHED';
 
@@ -30,6 +32,7 @@ export function useCrashGame() {
     }[]
   >([]);
   const [hasServerBet, setHasServerBet] = useState(false);
+  const [queuedNextBet, setQueuedNextBet] = useState(false);
   const [serverCashedOut, setServerCashedOut] = useState(false);
   const [serverPayout, setServerPayout] = useState(0);
   const [serverBetAmount, setServerBetAmount] = useState(0);
@@ -40,6 +43,13 @@ export function useCrashGame() {
   const pendingActionRef = useRef<PendingAction>(null);
   const multiplierRef = useRef(multiplier);
   const betAmountRef = useRef(serverBetAmount);
+  const queuedNextBetRef = useRef(false);
+  const hasServerBetRef = useRef(false);
+  const cancelSnapshotRef = useRef<{
+    hasServerBet: boolean;
+    queuedNextBet: boolean;
+    serverBetAmount: number;
+  } | null>(null);
 
   useEffect(() => {
     multiplierRef.current = multiplier;
@@ -48,6 +58,14 @@ export function useCrashGame() {
   useEffect(() => {
     betAmountRef.current = serverBetAmount;
   }, [serverBetAmount]);
+
+  useEffect(() => {
+    queuedNextBetRef.current = queuedNextBet;
+  }, [queuedNextBet]);
+
+  useEffect(() => {
+    hasServerBetRef.current = hasServerBet;
+  }, [hasServerBet]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -84,10 +102,17 @@ export function useCrashGame() {
         }
         if (data.state === 'COUNTDOWN' && data.countdown === 6) {
           pendingActionRef.current = null;
-          setHasServerBet(false);
           setServerCashedOut(false);
           setServerPayout(0);
-          setServerBetAmount(0);
+          // Fila promovida no servidor → bet-accepted; não apagar stake se já estava enfileirada.
+          if (queuedNextBetRef.current) {
+            setQueuedNextBet(false);
+            queuedNextBetRef.current = false;
+            setHasServerBet(true);
+          } else {
+            // bet-accepted pode chegar antes/depois; sync cobre reconexão.
+            // Só limpa quem não tinha aposta na rodada anterior (explode já limpou).
+          }
         }
       }
     );
@@ -115,9 +140,13 @@ export function useCrashGame() {
         setGameState('CRASHED');
         setMultiplier(data.crashPoint);
         if (data.history) setHistory(data.history);
+        // Mantém fila da próxima rodada; limpa só a aposta da rodada que acabou.
         setHasServerBet(false);
         setServerCashedOut(false);
-        setServerBetAmount(0);
+        if (!queuedNextBetRef.current) {
+          setServerBetAmount(0);
+        }
+        playCrashSound('crash');
         if (
           data.roundId != null &&
           data.serverSeed &&
@@ -158,20 +187,50 @@ export function useCrashGame() {
 
     socket.on('crash:bet-accepted', (data?: { amount?: number }) => {
       pendingActionRef.current = null;
+      const wasQueued = queuedNextBetRef.current;
+      setQueuedNextBet(false);
+      queuedNextBetRef.current = false;
       setHasServerBet(true);
       if (data?.amount != null && Number.isFinite(data.amount)) {
         setServerBetAmount(data.amount);
       }
+      setServerCashedOut(false);
+      setServerPayout(0);
       setLastError(null);
+      // Promoção da fila: já tocou som/moedas no queue; aposta no COUNTDOWN dispara FX.
+      if (!wasQueued) {
+        playCrashSound('bet');
+        emitCoinBurst({ direction: 'out' });
+      }
+    });
+
+    socket.on('crash:bet-queued', (data?: { amount?: number }) => {
+      pendingActionRef.current = null;
+      setQueuedNextBet(true);
+      queuedNextBetRef.current = true;
+      setHasServerBet(false);
+      if (data?.amount != null && Number.isFinite(data.amount)) {
+        setServerBetAmount(data.amount);
+      }
+      setServerCashedOut(false);
+      setServerPayout(0);
+      setLastError(null);
+      playCrashSound('bet');
+      emitCoinBurst({ direction: 'out' });
     });
 
     socket.on('crash:bet-cancelled', () => {
       pendingActionRef.current = null;
+      cancelSnapshotRef.current = null;
       setHasServerBet(false);
+      setQueuedNextBet(false);
+      queuedNextBetRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
       setServerBetAmount(0);
       setLastError(null);
+      playCrashSound('cancel');
+      emitCoinBurst({ direction: 'in', count: 6 });
     });
 
     socket.on('crash:cashout-ok', (data: { multiplier: number; payout: number }) => {
@@ -179,6 +238,8 @@ export function useCrashGame() {
       setServerCashedOut(true);
       setServerPayout(data.payout);
       setLastError(null);
+      playCrashSound('cashout');
+      emitCoinBurst({ direction: 'in', count: 10 });
     });
 
     socket.on('crash:error', (data: { code?: string }) => {
@@ -188,15 +249,27 @@ export function useCrashGame() {
 
       if (pending === 'bet') {
         if (code === 'ALREADY_BET') {
+          // Pode ser aposta atual ou fila — sync resolve; assume aposta atual.
           setHasServerBet(true);
+          setQueuedNextBet(false);
+          queuedNextBetRef.current = false;
         } else {
           setHasServerBet(false);
+          setQueuedNextBet(false);
+          queuedNextBetRef.current = false;
           setServerBetAmount(0);
         }
       } else if (pending === 'cancel') {
         if (code !== 'NO_BET') {
-          setHasServerBet(true);
+          const snap = cancelSnapshotRef.current;
+          if (snap) {
+            setHasServerBet(snap.hasServerBet);
+            setQueuedNextBet(snap.queuedNextBet);
+            queuedNextBetRef.current = snap.queuedNextBet;
+            setServerBetAmount(snap.serverBetAmount);
+          }
         }
+        cancelSnapshotRef.current = null;
       } else if (pending === 'cashout') {
         setServerCashedOut(false);
         setServerPayout(0);
@@ -232,26 +305,42 @@ export function useCrashGame() {
       socket.off('crash:bets');
       socket.off('crash:new-bet');
       socket.off('crash:bet-accepted');
+      socket.off('crash:bet-queued');
       socket.off('crash:bet-cancelled');
       socket.off('crash:cashout-ok');
       socket.off('crash:error');
     };
   }, []);
 
-  const joinGame = useCallback((amount: number) => {
+  const joinGame = useCallback((amount: number, state: GameState) => {
     setLastError(null);
     pendingActionRef.current = 'bet';
-    setHasServerBet(true);
     setServerBetAmount(amount);
     setServerCashedOut(false);
     setServerPayout(0);
+    if (state === 'COUNTDOWN') {
+      setHasServerBet(true);
+      setQueuedNextBet(false);
+      queuedNextBetRef.current = false;
+    } else {
+      setHasServerBet(false);
+      setQueuedNextBet(true);
+      queuedNextBetRef.current = true;
+    }
     getSocket().emit('crash:bet', { amount });
   }, []);
 
   const cancelBet = useCallback(() => {
     setLastError(null);
     pendingActionRef.current = 'cancel';
+    cancelSnapshotRef.current = {
+      hasServerBet: hasServerBetRef.current,
+      queuedNextBet: queuedNextBetRef.current,
+      serverBetAmount: betAmountRef.current,
+    };
     setHasServerBet(false);
+    setQueuedNextBet(false);
+    queuedNextBetRef.current = false;
     setServerBetAmount(0);
     getSocket().emit('crash:cancel');
   }, []);
@@ -273,6 +362,7 @@ export function useCrashGame() {
     history,
     players,
     hasServerBet,
+    queuedNextBet,
     serverCashedOut,
     serverPayout,
     serverBetAmount,

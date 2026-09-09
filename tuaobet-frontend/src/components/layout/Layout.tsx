@@ -5,6 +5,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { GlobalAnnouncementBar } from './GlobalAnnouncementBar';
 import { LoginModal } from '../auth/LoginModal';
 import { RegisterModal } from '../auth/RegisterModal';
+import { CoinBurstOverlay } from '../games/CoinBurstOverlay';
 import { cn } from '../../lib/utils';
 
 interface LayoutProps {
@@ -29,6 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="h-screen bg-tuao-dark-950 flex flex-col overflow-hidden text-sm font-sans text-tuao-text-primary">
       {/* Navbar Fixa no Topo */}
       <Navbar toggleSidebar={toggleSidebar} />
+      <CoinBurstOverlay />
 
       <div className="flex flex-1 overflow-hidden pt-16">
         {/* Sidebar Esquerda */}
