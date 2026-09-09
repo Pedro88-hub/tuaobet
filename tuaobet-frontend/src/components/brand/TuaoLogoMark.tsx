@@ -13,7 +13,7 @@ export function TuaoLogoMark({ className, alt = 'TuãoBet' }: TuaoLogoMarkProps)
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-tuao-dark-950 shadow-[0_0_16px_rgba(0,240,255,0.35)]',
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-tuao-dark-950',
         className,
       )}
     >

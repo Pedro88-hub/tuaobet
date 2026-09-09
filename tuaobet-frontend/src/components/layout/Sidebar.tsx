@@ -177,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isMobileOpen, clos
       <div className="flex min-h-0 flex-1 flex-col lg:hidden">
         <div className="flex h-14 shrink-0 items-center justify-between px-4 pt-2">
           <Link to="/" onClick={closeMobile} className="flex items-center gap-2">
-            <TuaoLogoMark className="h-8 w-8 shadow-[0_0_14px_rgba(0,240,255,0.4)]" />
+            <TuaoLogoMark className="h-8 w-8" />
             <span className="text-lg font-black lowercase tracking-tight text-white">
               tuão<span className="text-tuao-primary">bet</span>
             </span>
