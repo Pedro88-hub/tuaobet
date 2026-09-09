@@ -22,6 +22,17 @@ const formatMultiplierPt = (m: number) =>
 
 const CRASH_HISTORY_MODAL_PAGE_SIZE = 20;
 
+/** Estilo do chip de histórico por faixa de multiplicador (<2 / 2–10 / ≥10). */
+function crashHistoryChipClass(val: number): string {
+  if (val >= 10) {
+    return 'border-amber-400/40 bg-amber-400/15 font-extrabold text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.18)]';
+  }
+  if (val >= 2) {
+    return 'border-transparent bg-blaze-green font-extrabold text-[#0a1620]';
+  }
+  return 'border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary';
+}
+
 /** Coroa para outros jogadores (sem XP no payload): tons estáveis por id/nome. */
 function crownToneClass(seed: string): string {
   let h = 0;
@@ -342,13 +353,11 @@ export function CrashGame() {
                           key={i}
                           dir="ltr"
                           className={cn(
-                            'flex h-8 min-w-[50px] shrink-0 items-center justify-center rounded-md border px-3 text-center font-mono text-xs font-bold transition-all hover:opacity-80',
-                            val >= 2.0
-                              ? 'border-transparent bg-blaze-green font-extrabold text-[#0a1620]'
-                              : 'border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary'
+                            'flex h-8 min-w-[52px] shrink-0 items-center justify-center rounded-md border px-2.5 text-center font-mono text-xs font-bold tabular-nums transition-opacity hover:opacity-80',
+                            crashHistoryChipClass(val)
                           )}
                         >
-                          {val.toFixed(2)}x
+                          {formatMultiplierPt(val)}
                         </div>
                       ))}
                     </div>
@@ -620,7 +629,21 @@ export function CrashGame() {
           <p className="text-center text-sm text-tuao-text-secondary">Ainda sem rondas registadas.</p>
         ) : (
           <>
-            <div className="flex min-h-[120px] flex-wrap content-start gap-2 [scrollbar-width:thin]">
+            <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-tuao-text-secondary">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm border border-tuao-dark-700 bg-[#1a242d]" aria-hidden />
+                &lt; 2×
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm bg-blaze-green" aria-hidden />
+                2× – 10×
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm border border-amber-400/40 bg-amber-400/15" aria-hidden />
+                ≥ 10×
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 [scrollbar-width:thin]">
               {history
                 .slice(
                   historyModalPage * CRASH_HISTORY_MODAL_PAGE_SIZE,
@@ -630,13 +653,12 @@ export function CrashGame() {
                   <div
                     key={`round-${historyModalPage}-${i}`}
                     className={cn(
-                      'min-w-[56px] rounded-md border px-3 py-2 text-center font-mono text-sm font-bold',
-                      val >= 2.0
-                        ? 'border-transparent bg-blaze-green font-extrabold text-[#0a1620]'
-                        : 'border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary'
+                      'flex h-10 items-center justify-center rounded-lg border px-1.5 text-center font-mono text-sm tabular-nums',
+                      crashHistoryChipClass(val)
                     )}
+                    title={`Ronda ${historyModalPage * CRASH_HISTORY_MODAL_PAGE_SIZE + i + 1}`}
                   >
-                    {val.toFixed(2)}×
+                    {formatMultiplierPt(val)}
                   </div>
                 ))}
             </div>

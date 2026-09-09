@@ -2,13 +2,17 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const MIN_BET = Number(process.env.MIN_BET ?? 0.5);
-const MAX_BET = Number(process.env.MAX_BET ?? 5000);
+/** Sem teto por defeito; só aplica se `MAX_BET` estiver definido no env. */
+const MAX_BET =
+  process.env.MAX_BET != null && process.env.MAX_BET !== ''
+    ? Number(process.env.MAX_BET)
+    : Number.POSITIVE_INFINITY;
 
 export function validateStake(amount: number): { ok: true } | { ok: false; code: string } {
   if (!Number.isFinite(amount) || amount < MIN_BET) {
     return { ok: false, code: 'MIN_BET' };
   }
-  if (amount > MAX_BET) {
+  if (Number.isFinite(MAX_BET) && amount > MAX_BET) {
     return { ok: false, code: 'MAX_BET' };
   }
   return { ok: true };
