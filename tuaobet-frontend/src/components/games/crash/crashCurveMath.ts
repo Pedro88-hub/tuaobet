@@ -39,8 +39,6 @@ export type CrashGridLine = { value: number; y: number };
 
 export type CrashTimeTick = { sec: number; leftPct: number };
 
-export type CrashVerticalLine = { tSec: number; leftPct: number };
-
 export type CrashCurveResult = {
   pathD: string;
   areaD: string;
@@ -50,7 +48,6 @@ export type CrashCurveResult = {
   planeAngleDeg: number;
   gridLines: CrashGridLine[];
   timeAxisTicks: CrashTimeTick[];
-  verticalTimeLines: CrashVerticalLine[];
 };
 
 /**
@@ -81,19 +78,24 @@ function computePlaneAngleDeg(pts: { x: number; y: number }[]): number {
   return Math.max(-30, Math.min(12, 14 - climbDeg));
 }
 
+/** ~3 linhas horizontais (base x1 + 2 intervalos), no estilo Blaze. */
 function buildGridLines(maxY: number): CrashGridLine[] {
   const lines: CrashGridLine[] = [];
-  const range = maxY - 1;
-  const roughStep = range / 5;
+  const range = Math.max(maxY - 1, 0.01);
+  const roughStep = range / 2;
   const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
   const normalizedStep = roughStep / magnitude;
   const step =
     normalizedStep < 1.5 ? 1 * magnitude : normalizedStep < 3.5 ? 2 * magnitude : 5 * magnitude;
-  const startVal = Math.ceil(1.01 / step) * step;
 
-  for (let val = startVal; val < maxY; val += step) {
+  const push = (val: number) => {
     const rawBottom = ((val - 1) / (maxY - 1)) * 100;
     lines.push({ value: val, y: plotSvgY(rawBottom) });
+  };
+
+  push(1);
+  for (let val = Math.ceil(1.01 / step) * step; val < maxY; val += step) {
+    push(val);
   }
   return lines;
 }
@@ -101,25 +103,6 @@ function buildGridLines(maxY: number): CrashGridLine[] {
 function timeToX(t: number, tStart: number, tSpan: number): number {
   if (tSpan <= 1e-9) return 0;
   return clamp01(((t - tStart) / tSpan) * 100);
-}
-
-/** Espaçamento entre linhas verticais de tempo (segundos absolutos). */
-function pickVerticalStep(tSpan: number): number {
-  if (tSpan <= 10) return 2;
-  if (tSpan <= 20) return 3;
-  if (tSpan <= 40) return 5;
-  return 10;
-}
-
-function buildVerticalTimeLines(tStart: number, tNow: number, tSpan: number): CrashVerticalLine[] {
-  const step = pickVerticalStep(tSpan);
-  const lines: CrashVerticalLine[] = [];
-  let t = Math.ceil((tStart - 1e-6) / step) * step;
-  for (; t <= tNow + 1e-6; t += step) {
-    if (t < tStart - 1e-6) continue;
-    lines.push({ tSec: t, leftPct: plotX(timeToX(t, tStart, tSpan)) });
-  }
-  return lines;
 }
 
 function buildTimeAxisTicks(tStart: number, tNow: number, tSpan: number): CrashTimeTick[] {
@@ -172,7 +155,6 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
       planeAngleDeg: 0,
       gridLines: buildGridLines(maxY),
       timeAxisTicks: buildTimeAxisTicks(0, 0, 1),
-      verticalTimeLines: [],
     };
   }
 
@@ -195,6 +177,5 @@ export function buildCrashCurve(multiplier: number): CrashCurveResult {
     planeAngleDeg: computePlaneAngleDeg(pts),
     gridLines: buildGridLines(maxY),
     timeAxisTicks: buildTimeAxisTicks(tStart, tNow, tSpan),
-    verticalTimeLines: buildVerticalTimeLines(tStart, tNow, tSpan),
   };
 }

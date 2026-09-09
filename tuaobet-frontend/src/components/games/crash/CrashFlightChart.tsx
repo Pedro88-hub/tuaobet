@@ -38,15 +38,6 @@ export function CrashFlightChart({ multiplier }: Props) {
           </div>
         ))}
 
-        {curve.verticalTimeLines.map((v) => (
-          <div
-            key={v.tSec}
-            className="pointer-events-none absolute bottom-0 top-0 w-px bg-gradient-to-b from-white/[0.07] via-white/[0.04] to-white/[0.07]"
-            style={{ left: `${v.leftPct}%`, transform: 'translateX(-50%)' }}
-            aria-hidden
-          />
-        ))}
-
         <svg
           className="absolute inset-0 block h-full w-full overflow-hidden"
           viewBox="0 0 100 100"
