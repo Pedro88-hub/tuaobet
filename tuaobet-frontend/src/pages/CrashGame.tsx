@@ -5,7 +5,6 @@ import { useCrashGame } from '../hooks/useCrashGame';
 import { useAuth } from '../context/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { cn } from '../lib/utils';
 import { GameCountdownBar, CRASH_COUNTDOWN_SECONDS } from '../components/games/GameCountdownBar';
 import { BarChart2, ChevronLeft, ChevronRight, Crown, Info, Maximize2, Volume2, VolumeX, Wifi } from 'lucide-react';
@@ -24,6 +23,21 @@ const formatBrlAmount = (value: number) =>
 
 const formatMultiplierPt = (m: number) =>
   `${m.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
+
+/** Máscara BR da direita para a esquerda (centavos → 1.234,56). */
+function formatMultiplierMask(digits: string): string {
+  const cleaned = digits.replace(/\D/g, '');
+  if (!cleaned) return '';
+  const num = parseInt(cleaned, 10) / 100;
+  if (!Number.isFinite(num)) return '';
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function multiplierFromMaskDigits(digits: string): number {
+  const cleaned = digits.replace(/\D/g, '');
+  if (!cleaned) return NaN;
+  return parseInt(cleaned, 10) / 100;
+}
 
 const CRASH_HISTORY_MODAL_PAGE_SIZE = 20;
 
@@ -70,12 +84,16 @@ export function CrashGame() {
   } = useCrashGame();
 
   const [betAmount, setBetAmount] = useState('');
-  const [autoCashout, setAutoCashout] = useState<string>('');
+  /** Só dígitos; valor real = digits/100 (máscara RTL). */
+  const [autoCashoutDigits, setAutoCashoutDigits] = useState('');
   const [betMode, setBetMode] = useState<'normal' | 'auto'>('normal');
   const [lowerTab, setLowerTab] = useState<'jogadores' | 'descricao'>('jogadores');
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
   const [historyModalPage, setHistoryModalPage] = useState(0);
   const [soundMuted, setSoundMuted] = useState(() => isCrashSoundMuted());
+
+  const autoCashoutDisplay = formatMultiplierMask(autoCashoutDigits);
+  const autoCashoutValue = multiplierFromMaskDigits(autoCashoutDigits);
 
   // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
   const [timeLeft, setTimeLeft] = useState(countdown);
@@ -150,12 +168,13 @@ export function CrashGame() {
       gameState === 'RUNNING' &&
       hasServerBet &&
       !serverCashedOut &&
-      autoCashout &&
-      multiplier >= parseFloat(autoCashout)
+      Number.isFinite(autoCashoutValue) &&
+      autoCashoutValue > 1 &&
+      multiplier >= autoCashoutValue
     ) {
       cashout();
     }
-  }, [gameState, hasServerBet, serverCashedOut, autoCashout, multiplier, cashout]);
+  }, [gameState, hasServerBet, serverCashedOut, autoCashoutValue, multiplier, cashout]);
 
   const handleHalve = () =>
     setBetAmount((prev) => {
@@ -221,7 +240,9 @@ export function CrashGame() {
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-2 sm:space-y-4 sm:px-4 sm:pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
                 <div className="flex gap-2">
                   <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12">
-                    <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                    {!betAmount.trim() && (
+                      <span className="shrink-0 text-sm font-semibold text-white">Quantia</span>
+                    )}
                     <input
                       type="number"
                       inputMode="decimal"
@@ -230,6 +251,7 @@ export function CrashGame() {
                       value={betAmount}
                       onChange={(e) => setBetAmount(e.target.value)}
                       disabled={amountDisabled}
+                      aria-label="Quantia"
                       className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-50"
                     />
                     <span className="shrink-0 text-sm font-semibold text-white">R$</span>
@@ -255,18 +277,27 @@ export function CrashGame() {
                 </div>
 
                 <div className="flex w-full items-stretch gap-2">
-                    <div className="min-w-0 flex-1">
-                      <Input
-                        value={autoCashout}
-                        onChange={(e) => setAutoCashout(e.target.value)}
-                        placeholder="Auto retirar (multiplicador)"
+                    <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12 lg:bg-tuao-dark-950">
+                      <span className="shrink-0 text-xs font-semibold text-tuao-text-secondary sm:text-sm">
+                        Auto retirar
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={autoCashoutDisplay}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 8);
+                          setAutoCashoutDigits(digits);
+                        }}
+                        placeholder="0,00"
                         aria-label="Auto retirar (multiplicador)"
-                        className="h-11 w-full border-tuao-dark-700 bg-[#1a242d] text-base font-bold placeholder:text-xs placeholder:font-semibold focus:border-tuao-primary sm:h-12 sm:placeholder:text-sm lg:bg-tuao-dark-950"
+                        className="min-w-0 flex-1 bg-transparent text-right text-base font-bold tabular-nums text-white outline-none placeholder:text-tuao-text-secondary/60 disabled:opacity-50"
                       />
+                      <span className="shrink-0 text-sm font-bold text-white">x</span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setAutoCashout('')}
+                      onClick={() => setAutoCashoutDigits('')}
                       className="shrink-0 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 text-xs font-bold uppercase tracking-wide text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
                       aria-label="Limpar auto retirar"
                     >
