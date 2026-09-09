@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
   getCrashBetAnchorEl,
+  getDoubleBetAnchorEl,
   getWalletBalanceEl,
   onCoinBurst,
   rectCenter,
@@ -46,7 +47,8 @@ export function CoinBurstOverlay() {
   useEffect(() => {
     return onCoinBurst((detail: CoinBurstDetail) => {
       const wallet = rectCenter(getWalletBalanceEl());
-      const bet = rectCenter(getCrashBetAnchorEl());
+      const bet =
+        rectCenter(getCrashBetAnchorEl()) ?? rectCenter(getDoubleBetAnchorEl());
       if (!wallet || !bet) return;
 
       const from = detail.direction === 'out' ? wallet : bet;

@@ -148,3 +148,14 @@ model CrashRoundResult {
 
   @@index([createdAt])
 }
+
+// Resultado de ronda Double (histórico da UI; sobrevive a cold start).
+model DoubleRoundResult {
+  id           String   @id @default(uuid())
+  resultNumber Int
+  color        String
+  roundId      Int?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}

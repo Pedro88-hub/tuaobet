@@ -33,18 +33,19 @@ type DoubleRouletteTileProps = {
   variant: 'strip' | 'compact';
   className?: string;
   style?: CSSProperties;
+  title?: string;
 };
 
 /**
  * Quadrado idêntico em estilo ao da roleta (borda inferior grossa, cores por número).
  */
-export function DoubleRouletteTile({ number, variant, className, style }: DoubleRouletteTileProps) {
+export function DoubleRouletteTile({ number, variant, className, style, title }: DoubleRouletteTileProps) {
   const colorClass = doubleTileClassesForNumber(number);
 
   if (variant === 'strip') {
     if (number === 0) {
       return (
-        <div className={cn(baseTile, 'text-xl', colorClass, className)} style={style}>
+        <div className={cn(baseTile, 'text-xl', colorClass, className)} style={style} title={title}>
           <div className="box-border flex aspect-square w-[min(74%,3.35rem)] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-tuao-primary bg-white shadow-[0_0_22px_rgba(0,240,255,0.45)]">
             <img
               src={tuaoLogo}
@@ -58,7 +59,7 @@ export function DoubleRouletteTile({ number, variant, className, style }: Double
       );
     }
     return (
-      <div className={cn(baseTile, 'text-xl', colorClass, className)} style={style}>
+      <div className={cn(baseTile, 'text-xl', colorClass, className)} style={style} title={title}>
         {number}
       </div>
     );
@@ -69,7 +70,7 @@ export function DoubleRouletteTile({ number, variant, className, style }: Double
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-b-2 text-[11px] font-bold leading-none shadow-sm';
 
   return (
-    <div className={cn(compactShell, colorClass, className)} style={style}>
+    <div className={cn(compactShell, colorClass, className)} style={style} title={title}>
       {number === 0 ? (
         <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-tuao-primary bg-white shadow-[0_0_12px_rgba(0,240,255,0.4)]">
           <img

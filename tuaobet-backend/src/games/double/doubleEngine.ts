@@ -9,6 +9,9 @@ import {
   type SimulatedDoubleBet,
 } from './doubleSimulator';
 
+/** Quantidade máxima de rondas no histórico (memória + Postgres). */
+const DOUBLE_HISTORY_MAX = 400;
+
 type Color = 'red' | 'black' | 'white';
 
 type DoubleState = 'WAITING' | 'SPINNING' | 'RESULT';
@@ -21,11 +24,21 @@ type DoubleBetRow = {
   color: Color;
 };
 
+/** Aposta já debitada, à espera do próximo WAITING. */
+type PendingNextBet = {
+  betId: string;
+  userId: string;
+  username: string;
+  amount: number;
+  color: Color;
+};
+
 type HistoryItem = { number: number; color: Color };
 
 let doubleState: DoubleState = 'WAITING';
 let history: HistoryItem[] = [];
 let roundBets: DoubleBetRow[] = [];
+const pendingNextBets = new Map<string, PendingNextBet>();
 /** Apostas só para lista em tempo real (não entram na liquidação). */
 let roundSimulatedBets: SimulatedDoubleBet[] = [];
 let cancelSimulatedBets: () => void = () => {};
@@ -67,6 +80,73 @@ function displayBetsForClients() {
   return [...real, ...roundSimulatedBets];
 }
 
+function emitToUser(io: Server, userId: string, event: string, payload: unknown) {
+  for (const sock of io.sockets.sockets.values()) {
+    if (sock.data.userId === userId) {
+      sock.emit(event, payload);
+    }
+  }
+}
+
+function userHasRoundBet(userId: string): boolean {
+  return roundBets.some((b) => b.userId === userId);
+}
+
+async function loadDoubleHistoryFromDb(): Promise<HistoryItem[]> {
+  const rows = await prisma.doubleRoundResult.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: DOUBLE_HISTORY_MAX,
+    select: { resultNumber: true, color: true },
+  });
+  return rows.map((r) => ({
+    number: r.resultNumber,
+    color: r.color as Color,
+  }));
+}
+
+async function persistDoubleResult(
+  resultNumber: number,
+  color: Color,
+  roundId: number
+): Promise<void> {
+  await prisma.doubleRoundResult.create({
+    data: { resultNumber, color, roundId },
+  });
+
+  const keep = await prisma.doubleRoundResult.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: DOUBLE_HISTORY_MAX,
+    select: { id: true },
+  });
+  if (keep.length < DOUBLE_HISTORY_MAX) return;
+
+  await prisma.doubleRoundResult.deleteMany({
+    where: { id: { notIn: keep.map((r) => r.id) } },
+  });
+}
+
+function promotePendingNextBets(io: Server) {
+  if (pendingNextBets.size === 0) return;
+  const promoted = Array.from(pendingNextBets.values());
+  pendingNextBets.clear();
+  for (const pending of promoted) {
+    roundBets.push({
+      betId: pending.betId,
+      userId: pending.userId,
+      username: pending.username,
+      amount: pending.amount,
+      color: pending.color,
+    });
+    emitToUser(io, pending.userId, 'double:bet-accepted', {
+      id: pending.betId,
+      username: pending.username,
+      name: pending.username,
+      amount: pending.amount,
+      color: pending.color,
+    });
+  }
+}
+
 function emitDoubleSnapshot(socket: Socket) {
   socket.emit('double:history', history);
   const midRoundResult =
@@ -87,6 +167,45 @@ function emitDoubleSnapshot(socket: Socket) {
   if (doubleCommitPublic) {
     socket.emit('double:commit', doubleCommitPublic);
   }
+
+  const userId = socket.data.userId as string | undefined;
+  if (!userId) return;
+
+  if (doubleState === 'WAITING') {
+    const mine = roundBets.filter((b) => b.userId === userId);
+    if (mine.length > 0) {
+      const total = Math.round(mine.reduce((s, b) => s + b.amount, 0) * 100) / 100;
+      const first = mine[0];
+      socket.emit('double:bet-accepted', {
+        id: first.betId,
+        username: first.username,
+        name: first.username,
+        amount: total,
+        color: first.color,
+      });
+    }
+  } else {
+    const mine = roundBets.filter((b) => b.userId === userId);
+    if (mine.length > 0) {
+      const total = Math.round(mine.reduce((s, b) => s + b.amount, 0) * 100) / 100;
+      const first = mine[0];
+      socket.emit('double:bet-accepted', {
+        id: first.betId,
+        username: first.username,
+        name: first.username,
+        amount: total,
+        color: first.color,
+      });
+    }
+  }
+
+  const queued = pendingNextBets.get(userId);
+  if (queued) {
+    socket.emit('double:bet-queued', {
+      amount: queued.amount,
+      color: queued.color,
+    });
+  }
 }
 
 export const initDoubleGame = (io: Server) => {
@@ -99,6 +218,8 @@ export const initDoubleGame = (io: Server) => {
     doubleRoundId += 1;
 
     const thisRoundId = doubleRoundId;
+
+    promotePendingNextBets(io);
 
     const serverSeed = generateServerSeed();
     const serverSeedHash = hashServerSeed(serverSeed);
@@ -123,7 +244,7 @@ export const initDoubleGame = (io: Server) => {
       roundId: doubleRoundId,
       serverSeedHash,
     });
-    io.emit('double:bets', []);
+    io.emit('double:bets', shuffleDisplay(displayBetsForClients()));
 
     if (process.env.DOUBLE_SIMULATOR_DISABLED !== '1' && process.env.DOUBLE_SIMULATOR_DISABLED !== 'true') {
       cancelSimulatedBets = scheduleSimulatedDoubleBets(io, {
@@ -221,7 +342,13 @@ export const initDoubleGame = (io: Server) => {
     }
 
     history.unshift({ number: resultNumber, color });
-    if (history.length > 15) history.pop();
+    if (history.length > DOUBLE_HISTORY_MAX) history.pop();
+
+    try {
+      await persistDoubleResult(resultNumber, color, doubleRoundId);
+    } catch (e) {
+      console.error('[double] falha ao persistir histórico:', e);
+    }
 
     const pub = doubleCommitPublic;
     const sec = doubleRoundSecret;
@@ -257,10 +384,6 @@ export const initDoubleGame = (io: Server) => {
         socket.emit('double:error', { code: 'AUTH' });
         return;
       }
-      if (doubleState !== 'WAITING') {
-        socket.emit('double:error', { code: 'CLOSED' });
-        return;
-      }
 
       const amount = Number(data?.amount);
       const betColor = data?.color;
@@ -272,6 +395,22 @@ export const initDoubleGame = (io: Server) => {
       const stake = validateStake(amount);
       if (!stake.ok) {
         socket.emit('double:error', { code: stake.code });
+        return;
+      }
+
+      const placeInCurrentRound = doubleState === 'WAITING';
+      const placeInNextRound = doubleState === 'SPINNING' || doubleState === 'RESULT';
+      if (!placeInCurrentRound && !placeInNextRound) {
+        socket.emit('double:error', { code: 'CLOSED' });
+        return;
+      }
+
+      if (pendingNextBets.has(userId)) {
+        socket.emit('double:error', { code: 'ALREADY_BET' });
+        return;
+      }
+      if (placeInCurrentRound && userHasRoundBet(userId)) {
+        socket.emit('double:error', { code: 'ALREADY_BET' });
         return;
       }
 
@@ -303,25 +442,94 @@ export const initDoubleGame = (io: Server) => {
           });
         });
 
-        const row: DoubleBetRow = {
-          betId: betRow.id,
-          userId,
-          username: user.username,
-          amount,
-          color: betColor,
-        };
-        roundBets.push(row);
+        // Decisão pós-débito: evita saltar rodada se RESULT→WAITING durante o await.
+        const stillCurrent = doubleState === 'WAITING';
+        const stillNext = doubleState === 'SPINNING' || doubleState === 'RESULT';
 
-        const payload = {
-          id: betRow.id,
-          username: user.username,
-          name: user.username,
-          amount,
-          color: betColor,
-        };
-        io.emit('double:new-bet', payload);
+        if (!stillCurrent && !stillNext) {
+          const refund = Math.round(amount * 100) / 100;
+          try {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(userId, refund, 'Double — aposta fechada', tx);
+              await tx.bet.update({
+                where: { id: betRow.id },
+                data: { result: 'cancelled', payout: 0, multiplier: null },
+              });
+            });
+            pushWalletBalance(userId);
+          } catch {
+            /* saldo reconciliado operacionalmente */
+          }
+          socket.emit('double:error', { code: 'CLOSED' });
+          return;
+        }
+
+        if (pendingNextBets.has(userId)) {
+          const refund = Math.round(amount * 100) / 100;
+          try {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(userId, refund, 'Double — aposta duplicada', tx);
+              await tx.bet.update({
+                where: { id: betRow.id },
+                data: { result: 'cancelled', payout: 0, multiplier: null },
+              });
+            });
+            pushWalletBalance(userId);
+          } catch {
+            /* ignore */
+          }
+          socket.emit('double:error', { code: 'ALREADY_BET' });
+          return;
+        }
+
+        if (stillCurrent && userHasRoundBet(userId)) {
+          const refund = Math.round(amount * 100) / 100;
+          try {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(userId, refund, 'Double — aposta duplicada', tx);
+              await tx.bet.update({
+                where: { id: betRow.id },
+                data: { result: 'cancelled', payout: 0, multiplier: null },
+              });
+            });
+            pushWalletBalance(userId);
+          } catch {
+            /* ignore */
+          }
+          socket.emit('double:error', { code: 'ALREADY_BET' });
+          return;
+        }
+
+        if (stillCurrent) {
+          const row: DoubleBetRow = {
+            betId: betRow.id,
+            userId,
+            username: user.username,
+            amount,
+            color: betColor,
+          };
+          roundBets.push(row);
+
+          const payload = {
+            id: betRow.id,
+            username: user.username,
+            name: user.username,
+            amount,
+            color: betColor,
+          };
+          io.emit('double:new-bet', payload);
+          socket.emit('double:bet-accepted', payload);
+        } else {
+          pendingNextBets.set(userId, {
+            betId: betRow.id,
+            userId,
+            username: user.username,
+            amount,
+            color: betColor,
+          });
+          socket.emit('double:bet-queued', { amount, color: betColor });
+        }
         pushWalletBalance(userId);
-        socket.emit('double:bet-accepted', payload);
       } catch {
         socket.emit('double:error', { code: 'INSUFFICIENT_BALANCE' });
       }
@@ -333,31 +541,41 @@ export const initDoubleGame = (io: Server) => {
         socket.emit('double:error', { code: 'AUTH' });
         return;
       }
-      if (doubleState !== 'WAITING') {
-        socket.emit('double:error', { code: 'CLOSED' });
-        return;
-      }
 
-      const mine = roundBets.filter((b) => b.userId === userId);
-      if (mine.length === 0) {
-        socket.emit('double:error', { code: 'NO_BET' });
-        return;
-      }
+      let refundTotal = 0;
+      let betIds: string[] = [];
 
-      const refundTotal =
-        Math.round(mine.reduce((sum, b) => sum + b.amount, 0) * 100) / 100;
-      const betIds = mine.map((b) => b.betId);
+      if (doubleState === 'WAITING') {
+        const mine = roundBets.filter((b) => b.userId === userId);
+        if (mine.length === 0) {
+          socket.emit('double:error', { code: 'NO_BET' });
+          return;
+        }
+        refundTotal = Math.round(mine.reduce((sum, b) => sum + b.amount, 0) * 100) / 100;
+        betIds = mine.map((b) => b.betId);
+        roundBets = roundBets.filter((b) => b.userId !== userId);
 
-      // Remover da ronda já (síncrono) para a liquidação não incluir estas apostas
-      roundBets = roundBets.filter((b) => b.userId !== userId);
-
-      try {
         if (doubleState !== 'WAITING') {
           roundBets.push(...mine);
           socket.emit('double:error', { code: 'CLOSED' });
           return;
         }
 
+        io.emit('double:bets', shuffleDisplay(displayBetsForClients()));
+      } else {
+        const queued = pendingNextBets.get(userId);
+        if (!queued) {
+          socket.emit('double:error', { code: 'NO_BET' });
+          return;
+        }
+        pendingNextBets.delete(userId);
+        refundTotal = Math.round(queued.amount * 100) / 100;
+        betIds = [queued.betId];
+      }
+
+      socket.emit('double:bet-cancelled', { refunded: refundTotal });
+
+      const persistCancel = async () => {
         await prisma.$transaction(async (tx) => {
           await creditPayout(userId, refundTotal, 'Double — cancelamento', tx);
           await tx.bet.updateMany({
@@ -369,18 +587,27 @@ export const initDoubleGame = (io: Server) => {
             },
           });
         });
-
-        io.emit('double:bets', shuffleDisplay(displayBetsForClients()));
         pushWalletBalance(userId);
-        socket.emit('double:bet-cancelled', { refunded: refundTotal });
+      };
+
+      try {
+        await persistCancel();
       } catch {
-        if (doubleState === 'WAITING') {
-          roundBets.push(...mine);
+        try {
+          await persistCancel();
+        } catch {
+          /* cliente já viu o cancelamento */
         }
-        socket.emit('double:error', { code: 'INVALID' });
       }
     });
   });
 
-  doubleLoop();
+  void (async () => {
+    try {
+      history = await loadDoubleHistoryFromDb();
+    } catch (e) {
+      console.error('[double] falha ao carregar histórico:', e);
+    }
+    doubleLoop();
+  })();
 };

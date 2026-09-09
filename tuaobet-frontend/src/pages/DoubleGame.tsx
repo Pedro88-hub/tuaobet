@@ -5,10 +5,22 @@ import { useAuth } from '../context/AuthContext';
 import { Layout } from '../components/layout/Layout';
 import { Modal } from '../components/ui/Modal';
 import { cn } from '../lib/utils';
-import { BarChart2, Crown, Info, Maximize2, Wifi } from 'lucide-react';
+import { BarChart2, ChevronLeft, ChevronRight, Crown, Info, Maximize2, Volume2, VolumeX, Wifi } from 'lucide-react';
 import { GameCountdownBar, DOUBLE_COUNTDOWN_SECONDS } from '../components/games/GameCountdownBar';
 import { DoubleRouletteTile } from '../components/games/DoubleRouletteTile';
 import { DoubleColorBetCard } from '../components/games/DoubleColorBetCard';
+import { ProvablyFairDoubleStrip } from '../components/games/ProvablyFairStrip';
+import {
+  isCrashSoundMuted,
+  onCrashSoundMuteChange,
+  toggleCrashSoundMuted,
+} from '../lib/crashSounds';
+import {
+  formatCentsMask,
+  maskDigitsFromNumber,
+  numberFromMaskDigits,
+  sanitizeMaskDigits,
+} from '../lib/brlMask';
 
 // Configuração da ordem da roleta (padrão Double)
 // 0 = Branco, 1-7 = Vermelho, 8-14 = Preto
@@ -16,6 +28,7 @@ const ROULETTE_ORDER = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8];
 const TILE_SIZE = 80; // Largura de cada quadrado em px
 
 const MAX_VISIBLE_BETS_PER_COLUMN = 7;
+const DOUBLE_HISTORY_MODAL_PAGE_SIZE = 20;
 
 const formatBrl = (value: number) =>
   value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -31,6 +44,7 @@ function crownToneClass(seed: string): string {
   if (r === 1) return 'text-tuao-primary drop-shadow-[0_0_8px_rgba(0,240,255,0.35)]';
   return 'text-amber-400/95 drop-shadow-[0_0_6px_rgba(251,191,36,0.25)]';
 }
+
 export function DoubleGame() {
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const {
@@ -39,29 +53,50 @@ export function DoubleGame() {
     result,
     history,
     bets,
+    hasServerBet,
+    queuedNextBet,
+    serverBetAmount,
+    serverBetColor,
     placeBet,
     cancelBet,
     lastError,
+    fairnessCommit,
+    fairnessReveal,
   } = useDoubleGame();
 
-  const [amount, setAmount] = useState('');
+  /** Só dígitos; valor real = digits/100 (máscara RTL pt-BR). */
+  const [betAmountDigits, setBetAmountDigits] = useState('');
   const [selectedColor, setSelectedColor] = useState<DoubleColor | null>(null);
   const [lowerTab, setLowerTab] = useState<'apostas' | 'descricao'>('apostas');
   const [roundsHistoryOpen, setRoundsHistoryOpen] = useState(false);
+  const [historyModalPage, setHistoryModalPage] = useState(0);
+  const [soundMuted, setSoundMuted] = useState(() => isCrashSoundMuted());
+
+  const betAmountDisplay = formatCentsMask(betAmountDigits);
+  const betAmountValue = numberFromMaskDigits(betAmountDigits);
+  const amountValid = Number.isFinite(betAmountValue) && betAmountValue > 0;
 
   const sumMyBets = (color: DoubleColor) =>
     bets
       .filter((b) => (b.username || b.name) === user?.username && b.color === color)
       .reduce((acc, b) => acc + b.amount, 0);
 
-  const myTotalBet =
-    sumMyBets('red') + sumMyBets('white') + sumMyBets('black');
-  const hasActiveBet = myTotalBet > 0;
-  const parsedAmount = parseFloat(amount.trim() || '');
-  const amountValid = Number.isFinite(parsedAmount) && parsedAmount > 0;
+  /** Aposta da rodada atual (servidor); não usar lista visual — ela permanece no RESULT. */
+  const hasActiveBet = hasServerBet;
+
+  const amountDisabled = hasActiveBet || queuedNextBet;
+
+  const canBetNextRound =
+    !hasServerBet &&
+    !queuedNextBet &&
+    (gameState === 'SPINNING' || gameState === 'RESULT');
 
   // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
   const [timeLeft, setTimeLeft] = useState(countdown);
+
+  useEffect(() => {
+    return onCrashSoundMuteChange(setSoundMuted);
+  }, []);
 
   useEffect(() => {
     setTimeLeft(countdown);
@@ -75,22 +110,35 @@ export function DoubleGame() {
     return () => clearInterval(interval);
   }, [gameState]);
 
+  useEffect(() => {
+    if (roundsHistoryOpen) setHistoryModalPage(0);
+  }, [roundsHistoryOpen]);
+
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1);
+    setHistoryModalPage((p) => Math.min(p, maxPage));
+  }, [history.length]);
+
   // Nova ronda WAITING sem aposta: limpar seleção prévia
   useEffect(() => {
-    if (gameState === 'WAITING' && !hasActiveBet) {
+    if (gameState === 'WAITING' && !hasActiveBet && !queuedNextBet) {
       setSelectedColor(null);
     }
-  }, [gameState, hasActiveBet]);
+  }, [gameState, hasActiveBet, queuedNextBet]);
 
   // Após aposta confirmada, manter a cor apostada selecionada
   useEffect(() => {
+    if (serverBetColor) {
+      setSelectedColor(serverBetColor);
+      return;
+    }
     if (!hasActiveBet || !user?.username) return;
     if (sumMyBets('red') > 0) setSelectedColor('red');
     else if (sumMyBets('white') > 0) setSelectedColor('white');
     else if (sumMyBets('black') > 0) setSelectedColor('black');
     // sumMyBets is stable per render; intentional deps on bets/user
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasActiveBet, bets, user?.username]);
+  }, [hasActiveBet, bets, user?.username, serverBetColor]);
 
   // Referência para o container da roleta (para animação CSS)
   const rouletteRef = useRef<HTMLDivElement>(null);
@@ -101,53 +149,59 @@ export function DoubleGame() {
       openLoginModal();
       return;
     }
-    if (gameState !== 'WAITING') return;
-    if (hasActiveBet) return;
+    if (hasActiveBet || queuedNextBet) return;
+    if (gameState !== 'WAITING' && !canBetNextRound) return;
     setSelectedColor(color);
   };
 
-  const onConfirmBet = () => {
+  const handleBetAction = () => {
     if (!isAuthenticated) {
       openLoginModal();
       return;
     }
-    if (gameState !== 'WAITING' || hasActiveBet) return;
-    if (!selectedColor || !amountValid) return;
-    placeBet(parsedAmount, selectedColor);
-  };
-
-  const onCancelBet = () => {
-    if (!isAuthenticated) {
-      openLoginModal();
+    if (queuedNextBet) {
+      cancelBet();
       return;
     }
-    if (gameState !== 'WAITING' || !hasActiveBet) return;
-    cancelBet();
+    if (gameState === 'WAITING' && hasActiveBet) {
+      cancelBet();
+      return;
+    }
+    if (gameState === 'WAITING' && !hasActiveBet) {
+      if (!selectedColor || !amountValid) return;
+      placeBet(betAmountValue, selectedColor, gameState);
+      return;
+    }
+    if (canBetNextRound) {
+      if (!selectedColor || !amountValid) return;
+      placeBet(betAmountValue, selectedColor, gameState);
+    }
   };
 
-  type CtaMode = 'apostar' | 'cancelar' | 'apostado' | 'esperando';
-  const ctaMode: CtaMode =
-    gameState === 'WAITING'
+  type CtaMode = 'apostar' | 'cancelar' | 'cancelar_proxima' | 'apostado' | 'esperando' | 'apostar_proxima';
+  const ctaMode: CtaMode = queuedNextBet
+    ? 'cancelar_proxima'
+    : gameState === 'WAITING'
       ? hasActiveBet
         ? 'cancelar'
         : 'apostar'
       : hasActiveBet
         ? 'apostado'
-        : 'esperando';
+        : canBetNextRound
+          ? 'apostar_proxima'
+          : 'esperando';
 
   const ctaDisabled =
     ctaMode === 'apostado' ||
     ctaMode === 'esperando' ||
-    (ctaMode === 'apostar' && (!selectedColor || !amountValid));
+    ((ctaMode === 'apostar' || ctaMode === 'apostar_proxima') && (!selectedColor || !amountValid));
 
-  const ctaLabel =
-    ctaMode === 'cancelar'
-      ? 'Cancelar'
-      : ctaMode === 'apostado'
-        ? 'Apostado'
-        : ctaMode === 'esperando'
-          ? 'Esperando'
-          : 'Apostar';
+  const stakeDisplay =
+    serverBetAmount > 0
+      ? serverBetAmount
+      : Number.isFinite(betAmountValue)
+        ? betAmountValue
+        : 0;
 
   // Calcular posição final da roleta
   useEffect(() => {
@@ -155,7 +209,7 @@ export function DoubleGame() {
 
     const whiteIndex = ROULETTE_ORDER.indexOf(0);
     // Posição inicial (Branco no primeiro loop)
-    const startPosition = (whiteIndex * TILE_SIZE) + (TILE_SIZE / 2);
+    const startPosition = whiteIndex * TILE_SIZE + TILE_SIZE / 2;
 
     if (gameState === 'SPINNING' && result) {
       // 1. Movimento fluido e desaceleração
@@ -165,28 +219,27 @@ export function DoubleGame() {
       offsetRef.current = newOffset;
 
       const targetIndexInPattern = ROULETTE_ORDER.indexOf(result.number);
-      
+
       // Vamos mirar em um bloco lá na frente (ex: volta 4)
       const loops = 4;
-      const totalIndex = (ROULETTE_ORDER.length * loops) + targetIndexInPattern;
-      
+      const totalIndex = ROULETTE_ORDER.length * loops + targetIndexInPattern;
+
       // Posição final com o offset (parada imperfeita)
-      const finalPosition = (totalIndex * TILE_SIZE) + (TILE_SIZE / 2) + newOffset;
+      const finalPosition = totalIndex * TILE_SIZE + TILE_SIZE / 2 + newOffset;
 
       // Easing personalizado para desaceleração progressiva realista
       // Ajustado para 3.8s para garantir que pare antes do estado RESULT (4s)
-      rouletteRef.current.style.transition = 'transform 3.8s cubic-bezier(0.1, 0.05, 0.1, 1)'; 
+      rouletteRef.current.style.transition = 'transform 3.8s cubic-bezier(0.1, 0.05, 0.1, 1)';
       rouletteRef.current.style.transform = `translateX(-${finalPosition}px)`;
-
     } else if (gameState === 'RESULT' && result) {
       // 2. Parada e correção de alinhamento
       // Quando entra em RESULT, faz o ajuste fino para o centro
       const targetIndexInPattern = ROULETTE_ORDER.indexOf(result.number);
       const loops = 4;
-      const totalIndex = (ROULETTE_ORDER.length * loops) + targetIndexInPattern;
-      
+      const totalIndex = ROULETTE_ORDER.length * loops + targetIndexInPattern;
+
       // Posição exata no centro (sem offset)
-      const centerPosition = (totalIndex * TILE_SIZE) + (TILE_SIZE / 2);
+      const centerPosition = totalIndex * TILE_SIZE + TILE_SIZE / 2;
 
       // Delay para garantir percepção de parada
       const timer = setTimeout(() => {
@@ -198,7 +251,6 @@ export function DoubleGame() {
       }, 200);
 
       return () => clearTimeout(timer);
-
     } else if (gameState === 'WAITING') {
       // 3. Retorno e reinício
       // Retorna suavemente para a posição inicial (Branco)
@@ -227,18 +279,17 @@ export function DoubleGame() {
     ));
   };
 
-  const handleHalve = () =>
-    setAmount((prev) => {
-      const v = parseFloat(prev);
-      if (!Number.isFinite(v) || v <= 0) return '';
-      return (v / 2).toFixed(2);
-    });
-  const handleDouble = () =>
-    setAmount((prev) => {
-      const v = parseFloat(prev);
-      if (!Number.isFinite(v)) return '';
-      return (v * 2).toFixed(2);
-    });
+  const handleHalve = () => {
+    if (!Number.isFinite(betAmountValue) || betAmountValue <= 0) {
+      setBetAmountDigits('');
+      return;
+    }
+    setBetAmountDigits(maskDigitsFromNumber(betAmountValue / 2));
+  };
+  const handleDoubleAmt = () => {
+    if (!Number.isFinite(betAmountValue) || betAmountValue <= 0) return;
+    setBetAmountDigits(maskDigitsFromNumber(betAmountValue * 2));
+  };
 
   const toggleFullscreen = useCallback(() => {
     const root = document.documentElement;
@@ -249,24 +300,26 @@ export function DoubleGame() {
     }
   }, []);
 
+  const colorCardsDisabled = hasActiveBet || queuedNextBet;
+
   return (
     <Layout>
       <div className="mx-auto flex max-w-6xl flex-col gap-0 p-2 pb-8 text-white sm:p-4">
         {/* Mobile: roleta/histórico em cima, apostas em baixo — mesmo padrão do Crash */}
-        <div className="flex flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:flex-row lg:bg-tuao-dark-900">
+        <div className="flex min-w-0 max-lg:h-[calc(100dvh-11rem)] max-lg:min-h-0 flex-col-reverse gap-0 overflow-hidden rounded-xl border border-tuao-dark-800 bg-blaze-panel shadow-card lg:h-auto lg:flex-row lg:bg-tuao-dark-900">
           {/* Painel de apostas */}
           <div className="flex min-h-0 w-full shrink-0 flex-col border-t border-tuao-dark-800 bg-blaze-panel lg:w-[300px] lg:border-b-0 lg:border-r lg:border-t-0 lg:bg-tuao-dark-900">
-            <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4">
+            <div className="shrink-0 px-3 pb-1.5 pt-2 sm:px-4 sm:pb-2 sm:pt-3">
               <div className="flex rounded-lg border border-tuao-dark-800 bg-[#1a242d] p-1 lg:bg-tuao-dark-950">
                 <button
                   type="button"
-                  className="flex-1 rounded-md bg-[#2a3540] py-2.5 text-sm font-bold text-white shadow-sm lg:bg-tuao-dark-800"
+                  className="flex-1 rounded-md bg-[#2a3540] py-2 text-sm font-bold text-white shadow-sm sm:py-2.5 lg:bg-tuao-dark-800"
                 >
                   Normal
                 </button>
                 <button
                   type="button"
-                  className="flex-1 rounded-md py-2.5 text-sm font-bold text-tuao-text-secondary transition-colors hover:text-white"
+                  className="flex-1 rounded-md py-2 text-sm font-bold text-tuao-text-secondary transition-colors hover:text-white sm:py-2.5"
                 >
                   Auto
                 </button>
@@ -274,33 +327,38 @@ export function DoubleGame() {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-3 sm:px-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-2 sm:space-y-4 sm:px-4 sm:pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(55,55,55,0.9)_transparent]">
                 <div className="flex gap-2">
-                  <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary lg:bg-tuao-dark-950">
-                    <span className="shrink-0 text-sm font-semibold text-white">Valor</span>
+                  <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12 lg:bg-tuao-dark-950">
+                    {!betAmountDigits && (
+                      <span className="shrink-0 text-sm font-semibold text-white">Valor</span>
+                    )}
                     <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      type="text"
+                      inputMode="numeric"
+                      value={betAmountDisplay}
+                      onChange={(e) => setBetAmountDigits(sanitizeMaskDigits(e.target.value))}
+                      disabled={amountDisabled}
+                      aria-label="Valor"
+                      placeholder="0,00"
+                      className="min-w-0 flex-1 bg-transparent text-right text-base font-bold tabular-nums text-white outline-none placeholder:text-tuao-text-secondary/60 disabled:opacity-50"
                     />
                     <span className="shrink-0 text-sm font-semibold text-white">R$</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleHalve}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 lg:bg-tuao-dark-800"
+                    disabled={amountDisabled}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50 sm:h-12 sm:w-12 lg:bg-tuao-dark-800"
                     aria-label="Metade do valor"
                   >
                     ½
                   </button>
                   <button
                     type="button"
-                    onClick={handleDouble}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 lg:bg-tuao-dark-800"
+                    onClick={handleDoubleAmt}
+                    disabled={amountDisabled}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-sm font-bold text-white transition-colors hover:border-tuao-dark-600 hover:bg-tuao-dark-700 disabled:opacity-50 sm:h-12 sm:w-12 lg:bg-tuao-dark-800"
                     aria-label="Dobrar o valor"
                   >
                     2x
@@ -314,42 +372,43 @@ export function DoubleGame() {
                       <DoubleColorBetCard
                         color="red"
                         multiplier="x2"
-                        disabled={gameState !== 'WAITING' || hasActiveBet}
+                        disabled={colorCardsDisabled}
                         selected={selectedColor === 'red'}
-                        highlighted={sumMyBets('red') > 0}
+                        highlighted={sumMyBets('red') > 0 || (serverBetColor === 'red' && (hasActiveBet || queuedNextBet))}
                         onClick={() => onSelectColor('red')}
                       />
                       <DoubleColorBetCard
                         color="white"
                         multiplier="x14"
-                        disabled={gameState !== 'WAITING' || hasActiveBet}
+                        disabled={colorCardsDisabled}
                         selected={selectedColor === 'white'}
-                        highlighted={sumMyBets('white') > 0}
+                        highlighted={sumMyBets('white') > 0 || (serverBetColor === 'white' && (hasActiveBet || queuedNextBet))}
                         onClick={() => onSelectColor('white')}
                       />
                       <DoubleColorBetCard
                         color="black"
                         multiplier="x2"
-                        disabled={gameState !== 'WAITING' || hasActiveBet}
+                        disabled={colorCardsDisabled}
                         selected={selectedColor === 'black'}
-                        highlighted={sumMyBets('black') > 0}
+                        highlighted={sumMyBets('black') > 0 || (serverBetColor === 'black' && (hasActiveBet || queuedNextBet))}
                         onClick={() => onSelectColor('black')}
                       />
                     </div>
                     <button
                       type="button"
-                      onClick={ctaMode === 'cancelar' ? onCancelBet : onConfirmBet}
+                      data-double-bet-anchor
+                      onClick={handleBetAction}
                       disabled={ctaDisabled}
                       aria-live="polite"
                       className={cn(
                         'w-full rounded-lg border py-3.5 text-center text-sm font-bold transition-colors',
-                        ctaMode === 'apostar' &&
+                        (ctaMode === 'apostar' || ctaMode === 'apostar_proxima') &&
                           !ctaDisabled &&
                           'border-tuao-primary/40 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_18px_rgba(0,240,255,0.2)] hover:bg-tuao-primary-hover',
-                        ctaMode === 'apostar' &&
+                        (ctaMode === 'apostar' || ctaMode === 'apostar_proxima') &&
                           ctaDisabled &&
                           'cursor-not-allowed border-tuao-dark-700 bg-tuao-dark-800 text-tuao-text-secondary',
-                        ctaMode === 'cancelar' &&
+                        (ctaMode === 'cancelar' || ctaMode === 'cancelar_proxima') &&
                           'border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25',
                         ctaMode === 'apostado' &&
                           'cursor-default border-emerald-500/30 bg-emerald-500/10 text-emerald-300/90',
@@ -357,28 +416,74 @@ export function DoubleGame() {
                           'cursor-default border-tuao-primary/25 bg-tuao-dark-950 text-tuao-primary/85 shadow-[0_0_18px_rgba(0,240,255,0.08)]'
                       )}
                     >
-                      {ctaLabel}
+                      {ctaMode === 'cancelar_proxima' ? (
+                        <span className="flex flex-col items-center leading-tight">
+                          <span>Cancelar próxima</span>
+                          <span className="text-[11px] font-bold tabular-nums opacity-90">
+                            R$ {stakeDisplay.toFixed(2)}
+                          </span>
+                        </span>
+                      ) : ctaMode === 'cancelar' ? (
+                        <span className="flex flex-col items-center leading-tight">
+                          <span>Cancelar</span>
+                          <span className="text-[11px] font-bold tabular-nums opacity-90">
+                            R$ {stakeDisplay.toFixed(2)}
+                          </span>
+                        </span>
+                      ) : ctaMode === 'apostado' ? (
+                        'Apostado'
+                      ) : ctaMode === 'esperando' ? (
+                        'Esperando'
+                      ) : ctaMode === 'apostar_proxima' ? (
+                        'Apostar (próxima)'
+                      ) : (
+                        'Apostar'
+                      )}
                     </button>
                   </div>
                   <p className="text-center text-[10px] leading-snug text-tuao-text-secondary">
                     {ctaMode === 'cancelar'
                       ? 'Você pode cancelar e recuperar o saldo enquanto a rodada está aberta.'
-                      : ctaMode === 'apostado'
-                        ? 'Aposta bloqueada — a rodada já começou.'
-                        : 'Selecione a cor e confirma com Apostar.'}
+                      : ctaMode === 'cancelar_proxima'
+                        ? 'Aposta enfileirada para a próxima rodada. Cancele para reaver o saldo.'
+                        : ctaMode === 'apostado'
+                          ? 'Aposta bloqueada — a rodada já começou.'
+                          : ctaMode === 'apostar_proxima'
+                            ? 'Aposte agora para a próxima rodada (débito imediato).'
+                            : 'Selecione a cor e confirma com Apostar.'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center justify-between px-3 pb-3 pt-1 sm:px-4">
-                <button
-                  type="button"
-                  onClick={toggleFullscreen}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
-                  aria-label="Tela cheia"
-                >
-                  <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
-                </button>
+              <div className="flex shrink-0 items-center justify-between px-3 pb-2 pt-0.5 sm:px-4 sm:pb-3 sm:pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
+                    aria-label="Tela cheia"
+                  >
+                    <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleCrashSoundMuted()}
+                    className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-lg border bg-[#1a242d] transition-colors lg:bg-tuao-dark-950',
+                      soundMuted
+                        ? 'border-red-500/40 text-red-400 hover:border-red-500/60 hover:text-red-300'
+                        : 'border-tuao-dark-700 text-tuao-text-secondary hover:border-tuao-dark-600 hover:text-white'
+                    )}
+                    aria-label={soundMuted ? 'Ativar som' : 'Silenciar som'}
+                    aria-pressed={soundMuted}
+                  >
+                    {soundMuted ? (
+                      <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+                    ) : (
+                      <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+                    )}
+                  </button>
+                </div>
                 <Link
                   to="/fairness"
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-tuao-dark-700 bg-[#1a242d] text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white lg:bg-tuao-dark-950"
@@ -390,16 +495,16 @@ export function DoubleGame() {
             </div>
 
             {lastError && (
-              <div className="p-3 mt-auto border-t border-tuao-dark-800 bg-tuao-dark-950/30">
+              <div className="mt-auto border-t border-tuao-dark-800 bg-tuao-dark-950/30 p-3">
                 <p className="text-center text-xs text-red-400">{lastError}</p>
               </div>
             )}
           </div>
 
           {/* Visualizador: histórico no topo (mobile, como Crash) → countdown → roleta */}
-          <div className="relative flex min-h-0 flex-1 flex-col bg-blaze-panel lg:min-h-[480px] lg:bg-tuao-dark-900">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-blaze-panel lg:min-h-[480px] lg:bg-tuao-dark-900">
             {/* Giros anteriores — primeiro no mobile */}
-            <div className="shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2.5 lg:bg-tuao-dark-950/50">
+            <div className="min-w-0 shrink-0 border-b border-tuao-dark-800 bg-blaze-panel px-3 py-2 lg:bg-tuao-dark-950/50 lg:py-2.5">
               <div className="mb-2 hidden items-center justify-between gap-3 lg:flex">
                 <span className="text-[10px] font-bold uppercase leading-none tracking-wider text-tuao-text-secondary sm:text-[11px]">
                   Giros anteriores
@@ -415,19 +520,28 @@ export function DoubleGame() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <div className="flex min-h-8 min-w-0 flex-1 items-center gap-1 overflow-x-auto py-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(42,42,42,1)_transparent]">
+              <div className="flex min-h-8 min-w-0 items-center gap-1.5">
+                <div
+                  dir="rtl"
+                  className="min-h-8 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                >
                   {history.length === 0 ? (
-                    <span className="py-1 text-xs text-tuao-dark-700">Ainda sem histórico nesta sessão.</span>
+                    <span dir="ltr" className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
+                      Ainda sem histórico nesta sessão.
+                    </span>
                   ) : (
-                    history.map((item, idx) => (
-                      <DoubleRouletteTile
-                        key={`${item.number}-${idx}`}
-                        number={item.number}
-                        variant="compact"
-                        className="transition-transform hover:brightness-110"
-                      />
-                    ))
+                    /* RTL: começa à direita (junto ao botão); mais recente → esquerda com os mais antigos */
+                    <div className="inline-flex h-8 w-max max-w-none items-center gap-1">
+                      {history.map((item, idx) => (
+                        <div key={`${item.number}-${idx}`} dir="ltr">
+                          <DoubleRouletteTile
+                            number={item.number}
+                            variant="compact"
+                            className="transition-transform hover:brightness-110"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <button
@@ -473,18 +587,18 @@ export function DoubleGame() {
               <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-blaze-panel to-transparent md:w-36 lg:from-tuao-dark-900" />
               <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-blaze-panel to-transparent md:w-36 lg:from-tuao-dark-900" />
 
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[min(140px,28vw)] w-0.5 bg-gradient-to-b from-transparent via-white to-transparent z-[15] opacity-90 shadow-[0_0_12px_rgba(255,255,255,0.35)]" />
-              <div className="absolute left-1/2 top-[calc(50%-min(58px,14vw))] -translate-x-1/2 z-20 text-tuao-primary drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] text-sm">
+              <div className="absolute left-1/2 top-1/2 z-[15] h-[min(140px,28vw)] w-0.5 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-b from-transparent via-white to-transparent opacity-90 shadow-[0_0_12px_rgba(255,255,255,0.35)]" />
+              <div className="absolute left-1/2 top-[calc(50%-min(58px,14vw))] z-20 -translate-x-1/2 text-sm text-tuao-primary drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]">
                 ▼
               </div>
-              <div className="absolute left-1/2 bottom-[calc(50%-min(58px,14vw))] -translate-x-1/2 z-20 text-tuao-primary drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] text-sm">
+              <div className="absolute bottom-[calc(50%-min(58px,14vw))] left-1/2 z-20 -translate-x-1/2 text-sm text-tuao-primary drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]">
                 ▲
               </div>
 
-              <div className="overflow-hidden w-full relative h-[100px] z-[5]">
+              <div className="relative z-[5] h-[100px] w-full overflow-hidden">
                 <div
                   ref={rouletteRef}
-                  className="flex absolute left-1/2 top-0 h-full items-center will-change-transform"
+                  className="absolute left-1/2 top-0 flex h-full items-center will-change-transform"
                   style={{
                     transform: `translateX(-${ROULETTE_ORDER.indexOf(0) * TILE_SIZE + TILE_SIZE / 2}px)`,
                   }}
@@ -538,7 +652,7 @@ export function DoubleGame() {
           </div>
 
           {lowerTab === 'apostas' ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-px md:bg-tuao-dark-800 flex-1 min-h-[300px] md:min-h-[320px]">
+            <div className="grid min-h-[300px] flex-1 grid-cols-1 gap-0 md:min-h-[320px] md:grid-cols-3 md:gap-px md:bg-tuao-dark-800">
               <BetList
                 color="red"
                 multiplier="2×"
@@ -559,18 +673,20 @@ export function DoubleGame() {
               />
             </div>
           ) : (
-            <div className="p-6 text-sm text-tuao-text-secondary leading-relaxed space-y-4 max-w-2xl">
+            <div className="max-w-2xl space-y-4 p-6 text-sm leading-relaxed text-tuao-text-secondary">
               <p>
-                No <span className="text-white font-semibold">Double</span> você escolhe vermelho (2×), branco (14×) ou
+                No <span className="font-semibold text-white">Double</span> você escolhe vermelho (2×), branco (14×) ou
                 preto (2×). Se a roleta parar na sua cor, você ganha o valor apostado multiplicado pelo indicador.
               </p>
               <p>
-                As rodadas são sincronizadas em tempo real. O resultado é verificável: consulte a página de{' '}
-                <Link to="/fairness" className="text-tuao-primary hover:text-tuao-primary-hover font-semibold">
+                Você pode enfileirar uma aposta durante o giro para a próxima rodada. O resultado é verificável:
+                consulte a página de{' '}
+                <Link to="/fairness" className="font-semibold text-tuao-primary hover:text-tuao-primary-hover">
                   justiça comprovável
                 </Link>
                 .
               </p>
+              <ProvablyFairDoubleStrip commit={fairnessCommit} reveal={fairnessReveal} />
             </div>
           )}
         </div>
@@ -580,23 +696,63 @@ export function DoubleGame() {
         isOpen={roundsHistoryOpen}
         onClose={() => setRoundsHistoryOpen(false)}
         title="Histórico de giros"
-        subtitle="Resultados recentes (mais recentes primeiro)."
+        subtitle="Resultados recentes (mais recentes primeiro). 20 por página."
         size="wide"
         headerIcon={<BarChart2 className="h-5 w-5" strokeWidth={2.2} />}
       >
         {history.length === 0 ? (
           <p className="text-center text-sm text-tuao-text-secondary">Ainda sem giros registrados.</p>
         ) : (
-          <div className="flex max-h-[min(60vh,420px)] flex-wrap gap-2 overflow-y-auto pr-1 [scrollbar-width:thin]">
-            {history.map((item, idx) => (
-              <DoubleRouletteTile
-                key={`${item.number}-${idx}-modal`}
-                number={item.number}
-                variant="compact"
-                className="transition-transform hover:brightness-110"
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 [scrollbar-width:thin]">
+              {history
+                .slice(
+                  historyModalPage * DOUBLE_HISTORY_MODAL_PAGE_SIZE,
+                  historyModalPage * DOUBLE_HISTORY_MODAL_PAGE_SIZE + DOUBLE_HISTORY_MODAL_PAGE_SIZE
+                )
+                .map((item, i) => (
+                  <DoubleRouletteTile
+                    key={`round-${historyModalPage}-${item.number}-${i}`}
+                    number={item.number}
+                    variant="compact"
+                    className="transition-transform hover:brightness-110"
+                    title={`Rodada ${historyModalPage * DOUBLE_HISTORY_MODAL_PAGE_SIZE + i + 1}`}
+                  />
+                ))}
+            </div>
+            {history.length > DOUBLE_HISTORY_MODAL_PAGE_SIZE && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setHistoryModalPage((p) => Math.max(0, p - 1))}
+                  disabled={historyModalPage <= 0}
+                  className="inline-flex items-center gap-1 rounded-lg border border-tuao-dark-700 px-3 py-2 text-xs font-bold text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </button>
+                <span className="text-xs font-semibold tabular-nums text-tuao-text-secondary">
+                  Página {historyModalPage + 1} de{' '}
+                  {Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setHistoryModalPage((p) =>
+                      Math.min(Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1, p + 1)
+                    )
+                  }
+                  disabled={
+                    historyModalPage >= Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1
+                  }
+                  className="inline-flex items-center gap-1 rounded-lg border border-tuao-dark-700 px-3 py-2 text-xs font-bold text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white disabled:opacity-40"
+                >
+                  Próxima
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </Modal>
     </Layout>
@@ -668,7 +824,7 @@ const BetList = ({ color, multiplier, totalBets, myBet }: BetListProps) => {
       </div>
 
       {myBet != null && myBet > 0 && (
-        <div className="shrink-0 flex items-center justify-between gap-2 border-b border-tuao-dark-800 bg-tuao-primary/[0.07] px-3 py-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-tuao-dark-800 bg-tuao-primary/[0.07] px-3 py-2">
           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-tuao-primary">
             <span className="relative flex h-1.5 w-1.5 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
@@ -681,7 +837,7 @@ const BetList = ({ color, multiplier, totalBets, myBet }: BetListProps) => {
       )}
 
       {/* Barra tipo tabela */}
-      <div className="shrink-0 flex items-center justify-between bg-tuao-dark-800/95 px-3 py-2">
+      <div className="flex shrink-0 items-center justify-between bg-tuao-dark-800/95 px-3 py-2">
         <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-tuao-text-secondary">
           Usuário
         </span>
@@ -726,7 +882,7 @@ const BetList = ({ color, multiplier, totalBets, myBet }: BetListProps) => {
       </div>
 
       {hiddenCount > 0 && (
-        <div className="shrink-0 flex items-center justify-between gap-2 border-t border-tuao-dark-800 bg-tuao-dark-950/60 px-3 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-tuao-dark-800 bg-tuao-dark-950/60 px-3 py-2.5">
           <span className="text-[11px] font-bold text-tuao-text-secondary">
             +{hiddenCount} {hiddenCount === 1 ? 'jogador' : 'jogadores'}
           </span>

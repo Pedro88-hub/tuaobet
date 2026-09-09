@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '../services/socket';
+import { emitCoinBurst } from '../lib/gameFx';
+import { playCrashSound, stopCrashSound } from '../lib/crashSounds';
 
 export type DoubleColor = 'red' | 'white' | 'black';
 
@@ -27,15 +29,51 @@ export type DoubleFairnessReveal = {
   serverSeedHash?: string;
 };
 
+export type DoubleGameState = 'WAITING' | 'SPINNING' | 'RESULT';
+
+type PendingAction = 'bet' | 'cancel' | null;
+
 export function useDoubleGame() {
-  const [gameState, setGameState] = useState<'WAITING' | 'SPINNING' | 'RESULT'>('WAITING');
+  const [gameState, setGameState] = useState<DoubleGameState>('WAITING');
   const [countdown, setCountdown] = useState(12);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [bets, setBets] = useState<DoublePlayer[]>([]);
   const [result, setResult] = useState<{ color: DoubleColor; number: number } | null>(null);
+  const [hasServerBet, setHasServerBet] = useState(false);
+  const [queuedNextBet, setQueuedNextBet] = useState(false);
+  const [serverBetAmount, setServerBetAmount] = useState(0);
+  const [serverBetColor, setServerBetColor] = useState<DoubleColor | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [fairnessCommit, setFairnessCommit] = useState<DoubleFairnessCommit | null>(null);
   const [fairnessReveal, setFairnessReveal] = useState<DoubleFairnessReveal | null>(null);
+
+  const pendingActionRef = useRef<PendingAction>(null);
+  const betAmountRef = useRef(serverBetAmount);
+  const queuedNextBetRef = useRef(false);
+  const hasServerBetRef = useRef(false);
+  const cancelSnapshotRef = useRef<{
+    hasServerBet: boolean;
+    queuedNextBet: boolean;
+    serverBetAmount: number;
+    serverBetColor: DoubleColor | null;
+  } | null>(null);
+  const serverBetColorRef = useRef<DoubleColor | null>(null);
+
+  useEffect(() => {
+    betAmountRef.current = serverBetAmount;
+  }, [serverBetAmount]);
+
+  useEffect(() => {
+    queuedNextBetRef.current = queuedNextBet;
+  }, [queuedNextBet]);
+
+  useEffect(() => {
+    hasServerBetRef.current = hasServerBet;
+  }, [hasServerBet]);
+
+  useEffect(() => {
+    serverBetColorRef.current = serverBetColor;
+  }, [serverBetColor]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -53,7 +91,7 @@ export function useDoubleGame() {
     socket.on(
       'double:state',
       (data: {
-        state: 'WAITING' | 'SPINNING' | 'RESULT';
+        state: DoubleGameState;
         countdown: number;
         roundId?: number;
         serverSeedHash?: string;
@@ -64,6 +102,13 @@ export function useDoubleGame() {
         setCountdown(data.countdown ?? 0);
         if (data.state === 'WAITING') {
           setResult(null);
+          pendingActionRef.current = null;
+          // Fila promovida no servidor → bet-accepted; não apagar stake se já estava enfileirada.
+          if (queuedNextBetRef.current) {
+            setQueuedNextBet(false);
+            queuedNextBetRef.current = false;
+            setHasServerBet(true);
+          }
         } else if (
           (data.state === 'SPINNING' || data.state === 'RESULT') &&
           data.resultNumber != null &&
@@ -93,6 +138,7 @@ export function useDoubleGame() {
     socket.on('double:spin', (data: { resultNumber: number; color: DoubleColor }) => {
       setGameState('SPINNING');
       setResult({ number: data.resultNumber, color: data.color });
+      stopCrashSound('bet');
     });
 
     socket.on(
@@ -108,6 +154,12 @@ export function useDoubleGame() {
       }) => {
         setGameState('RESULT');
         setHistory(data.history);
+        // Mantém fila da próxima rodada; limpa só a aposta da rodada que acabou.
+        setHasServerBet(false);
+        if (!queuedNextBetRef.current) {
+          setServerBetAmount(0);
+          setServerBetColor(null);
+        }
         if (
           data.roundId != null &&
           data.serverSeed &&
@@ -124,26 +176,89 @@ export function useDoubleGame() {
       }
     );
 
+    socket.on('double:bet-accepted', (data?: { amount?: number; color?: DoubleColor }) => {
+      pendingActionRef.current = null;
+      setQueuedNextBet(false);
+      queuedNextBetRef.current = false;
+      setHasServerBet(true);
+      if (data?.amount != null && Number.isFinite(data.amount)) {
+        setServerBetAmount(data.amount);
+      }
+      if (data?.color) {
+        setServerBetColor(data.color);
+      }
+      setLastError(null);
+    });
+
+    socket.on('double:bet-queued', (data?: { amount?: number; color?: DoubleColor }) => {
+      pendingActionRef.current = null;
+      setQueuedNextBet(true);
+      queuedNextBetRef.current = true;
+      setHasServerBet(false);
+      if (data?.amount != null && Number.isFinite(data.amount)) {
+        setServerBetAmount(data.amount);
+      }
+      if (data?.color) {
+        setServerBetColor(data.color);
+      }
+      setLastError(null);
+    });
+
+    socket.on('double:bet-cancelled', () => {
+      pendingActionRef.current = null;
+      cancelSnapshotRef.current = null;
+      setHasServerBet(false);
+      setQueuedNextBet(false);
+      queuedNextBetRef.current = false;
+      setServerBetAmount(0);
+      setServerBetColor(null);
+      setLastError(null);
+    });
+
     socket.on('double:error', (data: { code?: string }) => {
+      const code = data.code ?? '';
+      const pending = pendingActionRef.current;
+      pendingActionRef.current = null;
+
+      if (pending === 'bet') {
+        if (code === 'ALREADY_BET') {
+          setHasServerBet(true);
+          setQueuedNextBet(false);
+          queuedNextBetRef.current = false;
+        } else {
+          setHasServerBet(false);
+          setQueuedNextBet(false);
+          queuedNextBetRef.current = false;
+          setServerBetAmount(0);
+          setServerBetColor(null);
+        }
+      } else if (pending === 'cancel') {
+        if (code !== 'NO_BET') {
+          const snap = cancelSnapshotRef.current;
+          if (snap) {
+            setHasServerBet(snap.hasServerBet);
+            setQueuedNextBet(snap.queuedNextBet);
+            queuedNextBetRef.current = snap.queuedNextBet;
+            setServerBetAmount(snap.serverBetAmount);
+            setServerBetColor(snap.serverBetColor);
+          }
+        }
+        cancelSnapshotRef.current = null;
+      }
+
       const map: Record<string, string> = {
         AUTH: 'Faça login para apostar.',
         CLOSED: 'Apostas fechadas.',
         INVALID: 'Dados inválidos.',
+        ALREADY_BET: 'Você já apostou nesta rodada.',
         INSUFFICIENT_BALANCE: 'Saldo insuficiente.',
         MIN_BET: 'Valor abaixo do mínimo.',
         MAX_BET: 'Valor acima do máximo.',
         NO_BET: 'Nenhuma aposta para cancelar.',
         ACCOUNT_BLOCKED: 'Conta bloqueada.',
+        SERVER: 'Erro no servidor. Tente de novo.',
       };
-      setLastError(map[data.code ?? ''] || data.code || 'Erro');
-    });
-
-    socket.on('double:bet-accepted', () => {
-      setLastError(null);
-    });
-
-    socket.on('double:bet-cancelled', () => {
-      setLastError(null);
+      setLastError(map[code] || code || 'Erro');
     });
 
     socket.on('connect', requestDoubleSync);
@@ -161,17 +276,47 @@ export function useDoubleGame() {
       socket.off('double:result');
       socket.off('double:error');
       socket.off('double:bet-accepted');
+      socket.off('double:bet-queued');
       socket.off('double:bet-cancelled');
     };
   }, []);
 
-  const placeBet = useCallback((amount: number, color: DoubleColor) => {
+  const placeBet = useCallback((amount: number, color: DoubleColor, state: DoubleGameState) => {
     setLastError(null);
+    pendingActionRef.current = 'bet';
+    setServerBetAmount(amount);
+    setServerBetColor(color);
+    if (state === 'WAITING') {
+      setHasServerBet(true);
+      setQueuedNextBet(false);
+      queuedNextBetRef.current = false;
+    } else {
+      setHasServerBet(false);
+      setQueuedNextBet(true);
+      queuedNextBetRef.current = true;
+    }
+    playCrashSound('bet');
+    emitCoinBurst({ direction: 'out' });
     getSocket().emit('double:bet', { amount, color });
   }, []);
 
   const cancelBet = useCallback(() => {
     setLastError(null);
+    pendingActionRef.current = 'cancel';
+    cancelSnapshotRef.current = {
+      hasServerBet: hasServerBetRef.current,
+      queuedNextBet: queuedNextBetRef.current,
+      serverBetAmount: betAmountRef.current,
+      serverBetColor: serverBetColorRef.current,
+    };
+    setHasServerBet(false);
+    setQueuedNextBet(false);
+    queuedNextBetRef.current = false;
+    setServerBetAmount(0);
+    setServerBetColor(null);
+    stopCrashSound('bet');
+    playCrashSound('cancel');
+    emitCoinBurst({ direction: 'in', count: 6 });
     getSocket().emit('double:cancel');
   }, []);
 
@@ -181,6 +326,10 @@ export function useDoubleGame() {
     result,
     history,
     bets,
+    hasServerBet,
+    queuedNextBet,
+    serverBetAmount,
+    serverBetColor,
     placeBet,
     cancelBet,
     lastError,

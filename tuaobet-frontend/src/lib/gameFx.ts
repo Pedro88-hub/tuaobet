@@ -34,3 +34,7 @@ export function getWalletBalanceEl(): Element | null {
 export function getCrashBetAnchorEl(): Element | null {
   return document.querySelector('[data-crash-bet-anchor]');
 }
+
+export function getDoubleBetAnchorEl(): Element | null {
+  return document.querySelector('[data-double-bet-anchor]');
+}
