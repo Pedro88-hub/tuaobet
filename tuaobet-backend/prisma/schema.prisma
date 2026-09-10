@@ -125,6 +125,8 @@ model Bet {
   sportSelection String?       // HOME | DRAW | AWAY
   
   createdAt DateTime @default(now())
+
+  @@index([result, createdAt])
 }
 
 model Transaction {

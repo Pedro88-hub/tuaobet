@@ -12,6 +12,7 @@ import {
   type Card,
 } from './baccaratEngine';
 import { isBaccaratInMaintenance } from '../../config/gameMaintenance';
+import { publishBigWinFromBet } from '../../services/publishBigWin';
 
 type BaccaratPhase = 'BETTING' | 'DEALING' | 'RESULT';
 
@@ -170,6 +171,14 @@ export const initBaccaratGame = (io: Server) => {
             });
           });
           pushWalletBalance(b.userId);
+          publishBigWinFromBet({
+            id: b.betId,
+            game: 'baccarat',
+            amount: b.totalStake,
+            multiplier: mult,
+            payout,
+            username: b.username,
+          });
         } else {
           await prisma.bet.update({
             where: { id: b.betId },

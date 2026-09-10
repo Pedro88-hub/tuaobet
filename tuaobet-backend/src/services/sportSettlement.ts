@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { creditPayout } from './ledger';
 import { pushWalletBalance } from '../socket/pushWalletBalance';
+import { publishBigWinForUser } from './publishBigWin';
 
 export type Outcome1x2 = 'HOME' | 'DRAW' | 'AWAY';
 
@@ -60,6 +61,17 @@ export async function settlePendingSportBetsForFixture(
       }
     });
     pushWalletBalance(bet.userId);
+    if (won) {
+      const payout = Math.round(bet.amount * odds * 100) / 100;
+      void publishBigWinForUser({
+        betId: bet.id,
+        userId: bet.userId,
+        game: 'sport',
+        amount: bet.amount,
+        multiplier: odds,
+        payout,
+      });
+    }
     settled += 1;
   }
 

@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { pushWalletBalance } from '../socket/pushWalletBalance';
 import { creditPayout, debitStake, validateStake } from '../services/ledger';
+import { publishBigWinForUser } from '../services/publishBigWin';
 import {
   createMinesGrid,
   createSession,
@@ -150,6 +151,14 @@ export async function minesReveal(req: AuthRequest, res: Response) {
     });
     const balance = u?.balance ?? 0;
     pushWalletBalance(userId);
+    void publishBigWinForUser({
+      betId: session.betId,
+      userId,
+      game: 'mines',
+      amount: session.betAmount,
+      multiplier: finalMult,
+      payout,
+    });
     return res.json({
       gameOver: true,
       won: true,
@@ -204,6 +213,9 @@ export async function minesCashout(req: AuthRequest, res: Response) {
     });
   });
 
+  const cashoutMult = session.multiplier;
+  const cashoutAmount = session.betAmount;
+  const cashoutBetId = session.betId;
   session.gameOver = true;
   deleteSession(gameId);
   const u = await prisma.user.findUnique({
@@ -212,9 +224,17 @@ export async function minesCashout(req: AuthRequest, res: Response) {
   });
   const balance = u?.balance ?? 0;
   pushWalletBalance(userId);
+  void publishBigWinForUser({
+    betId: cashoutBetId,
+    userId,
+    game: 'mines',
+    amount: cashoutAmount,
+    multiplier: cashoutMult,
+    payout,
+  });
   return res.json({
     balance,
-    multiplier: session.multiplier,
+    multiplier: cashoutMult,
     payout,
   });
 }
@@ -237,7 +257,7 @@ export async function diceRoll(req: AuthRequest, res: Response) {
   const potentialWin = Math.round(betAmount * multiplier * 100) / 100;
 
   try {
-    const { roll, won, payout } = await prisma.$transaction(async (tx) => {
+    const { roll, won, payout, betId } = await prisma.$transaction(async (tx) => {
       await debitStake(userId, betAmount, 'Dice — aposta', tx);
       const roll = rollDiceFloat();
       const won = roll <= rollUnder;
@@ -245,7 +265,7 @@ export async function diceRoll(req: AuthRequest, res: Response) {
       if (won) {
         await creditPayout(userId, payout, `Dice — vitória (roll ≤ ${rollUnder})`, tx);
       }
-      await tx.bet.create({
+      const betRow = await tx.bet.create({
         data: {
           userId,
           game: 'dice',
@@ -255,7 +275,7 @@ export async function diceRoll(req: AuthRequest, res: Response) {
           payout: won ? payout : 0,
         },
       });
-      return { roll, won, payout };
+      return { roll, won, payout, betId: betRow.id };
     });
 
     const u = await prisma.user.findUnique({
@@ -265,6 +285,16 @@ export async function diceRoll(req: AuthRequest, res: Response) {
 
     const balance = u?.balance ?? 0;
     pushWalletBalance(userId);
+    if (won) {
+      void publishBigWinForUser({
+        betId,
+        userId,
+        game: 'dice',
+        amount: betAmount,
+        multiplier,
+        payout,
+      });
+    }
     return res.json({
       roll,
       rollUnder,
@@ -306,10 +336,10 @@ export async function plinkoDrop(req: AuthRequest, res: Response) {
   const payout = Math.round(betAmount * slotMultiplier * 100) / 100;
 
   try {
-    await prisma.$transaction(async (tx) => {
+    const betRow = await prisma.$transaction(async (tx) => {
       await debitStake(userId, betAmount, 'Plinko — aposta', tx);
       await creditPayout(userId, payout, `Plinko — resultado ${slotMultiplier}x`, tx);
-      await tx.bet.create({
+      return tx.bet.create({
         data: {
           userId,
           game: 'plinko',
@@ -328,6 +358,16 @@ export async function plinkoDrop(req: AuthRequest, res: Response) {
 
     const balance = u?.balance ?? 0;
     pushWalletBalance(userId);
+    if (betRow.result === 'win') {
+      void publishBigWinForUser({
+        betId: betRow.id,
+        userId,
+        game: 'plinko',
+        amount: betAmount,
+        multiplier: slotMultiplier,
+        payout,
+      });
+    }
     return res.json({
       path,
       finalSlot,
@@ -407,10 +447,10 @@ export async function baccaratPlay(req: AuthRequest, res: Response) {
     totalStake > 0 ? Math.round((payout / totalStake) * 100) / 100 : null;
 
   try {
-    await prisma.$transaction(async (tx) => {
+    const betRow = await prisma.$transaction(async (tx) => {
       await debitStake(userId, totalStake, 'Baccarat — aposta', tx);
       await creditPayout(userId, payout, `Baccarat — ${round.outcome}`, tx);
-      await tx.bet.create({
+      return tx.bet.create({
         data: {
           userId,
           game: 'baccarat',
@@ -429,6 +469,16 @@ export async function baccaratPlay(req: AuthRequest, res: Response) {
 
     const balance = u?.balance ?? 0;
     pushWalletBalance(userId);
+    if (betRow.result === 'win') {
+      void publishBigWinForUser({
+        betId: betRow.id,
+        userId,
+        game: 'baccarat',
+        amount: totalStake,
+        multiplier: effectiveMultiplier,
+        payout,
+      });
+    }
     return res.json({
       playerCards: round.playerCards,
       bankerCards: round.bankerCards,

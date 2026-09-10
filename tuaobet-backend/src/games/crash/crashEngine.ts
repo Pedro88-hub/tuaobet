@@ -13,6 +13,7 @@ import {
   type SimulatedCrashBet,
 } from './crashSimulator';
 import { randInt } from '../simulator/simulatorCommon';
+import { publishBigWinFromBet } from '../../services/publishBigWin';
 
 /** Quantidade máxima de rondas no histórico (memória + Postgres). */
 const CRASH_HISTORY_MAX = 400;
@@ -634,9 +635,25 @@ export const initCrashGame = (io: Server) => {
 
       try {
         await persistCashout();
+        publishBigWinFromBet({
+          id: rec.betId,
+          game: 'crash',
+          amount: rec.amount,
+          multiplier: cashoutAt,
+          payout,
+          username: rec.username,
+        });
       } catch {
         try {
           await persistCashout();
+          publishBigWinFromBet({
+            id: rec.betId,
+            game: 'crash',
+            amount: rec.amount,
+            multiplier: cashoutAt,
+            payout,
+            username: rec.username,
+          });
         } catch {
           // Cashout já confirmado em memória/UI; crédito será retentado operacionalmente se falhar
         }

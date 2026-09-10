@@ -16,6 +16,10 @@ export default {
           DEFAULT: '#00F0FF', // Azul neon principal
           hover: '#33F3FF',   // Variação para hover
         },
+        'tuao-cta': {
+          DEFAULT: '#f12c4c', // CTA principal (Depositar / Cadastre-se)
+          hover: '#ff4d6a',
+        },
         'tuao-text': {
           primary: '#FFFFFF', // Texto principal
           secondary: '#A1A1A1', // Texto secundário
@@ -33,6 +37,7 @@ export default {
       boxShadow: {
         'neon': '0 0 10px rgba(0, 240, 255, 0.5)',
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3)',
+        'panel': '0 2px 8px rgba(0, 0, 0, 0.35)',
       },
       keyframes: {
         'hero-shimmer': {

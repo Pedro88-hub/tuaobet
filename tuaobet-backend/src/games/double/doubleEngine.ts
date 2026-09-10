@@ -8,6 +8,7 @@ import {
   scheduleSimulatedDoubleBets,
   type SimulatedDoubleBet,
 } from './doubleSimulator';
+import { publishBigWinFromBet } from '../../services/publishBigWin';
 
 /** Quantidade máxima de rondas no histórico (memória + Postgres). */
 const DOUBLE_HISTORY_MAX = 400;
@@ -401,6 +402,14 @@ export const initDoubleGame = (io: Server) => {
               });
             });
             pushWalletBalance(b.userId);
+            publishBigWinFromBet({
+              id: b.betId,
+              game: 'double',
+              amount: b.amount,
+              multiplier: mult,
+              payout,
+              username: b.username,
+            });
           } else {
             await prisma.bet.update({
               where: { id: b.betId },

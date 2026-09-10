@@ -39,3 +39,18 @@ export function announcementToSocketPayload(row: GlobalAnnouncement): SiteAnnoun
 export function emitGlobalAnnouncement(row: GlobalAnnouncement): void {
   ioRef?.emit('site:announcement', announcementToSocketPayload(row));
 }
+
+/** Vitória pública para o feed “Grandes Vitórias” da home. */
+export type SiteBigWinPayload = {
+  id: string;
+  game: string;
+  amount: number;
+  multiplier: number | null;
+  payout: number;
+  createdAt: string;
+  username: string;
+};
+
+export function emitSiteBigWin(payload: SiteBigWinPayload): void {
+  ioRef?.emit('site:big-win', payload);
+}

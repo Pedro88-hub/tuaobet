@@ -5,7 +5,7 @@ import {
   Search,
   User,
   Bell,
-  Crown,
+  Coins,
   LogOut,
   Scale,
   Trophy,
@@ -15,6 +15,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { cn } from '../../lib/utils';
 import { levelFromXp, tierForLevel, xpProgressInLevel } from '../../lib/xpDisplay';
 import { TuaoLogoMark } from '../brand/TuaoLogoMark';
+import { OPEN_WALLET_EVENT } from '../home/HomePaymentStrip';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -110,6 +111,16 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
   useClickOutside(walletRef, closeWallet, walletOpen);
   useClickOutside(profileRef, closeProfile, profileOpen);
   useClickOutside(notifRef, closeNotif, notifOpen);
+
+  useEffect(() => {
+    const openWallet = () => {
+      setWalletOpen(true);
+      setProfileOpen(false);
+      setNotifOpen(false);
+    };
+    window.addEventListener(OPEN_WALLET_EVENT, openWallet);
+    return () => window.removeEventListener(OPEN_WALLET_EVENT, openWallet);
+  }, []);
 
   const isCasino =
     location.pathname === '/' ||
@@ -224,26 +235,113 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
       <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
         {isAuthenticated ? (
           <>
-            {/* Nível / patente */}
-            <div className="hidden lg:flex min-w-0 flex-col gap-1 border-r border-tuao-dark-800 pr-4">
-              <div className="flex items-center gap-2">
-                <Crown size={16} className={cn('shrink-0', tier.crownClass)} strokeWidth={2} />
-                <div className="min-w-0 leading-tight">
-                  <p className="text-[11px] font-bold text-white">{tier.label}</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-tuao-text-secondary">
-                    Nível {level}
-                  </p>
+            {/* 1. Pesquisa */}
+            <div className="relative flex items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchExpanded((v) => !v);
+                  setWalletOpen(false);
+                  setProfileOpen(false);
+                  setNotifOpen(false);
+                  setTimeout(() => searchInputRef.current?.focus(), 0);
+                }}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tuao-dark-800 text-white transition-colors hover:bg-tuao-dark-700"
+                aria-label="Pesquisar"
+                aria-expanded={searchExpanded}
+              >
+                <Search size={18} strokeWidth={2.5} />
+              </button>
+              <div
+                className={cn(
+                  'absolute right-0 top-full z-50 mt-2 overflow-hidden transition-all duration-200',
+                  searchExpanded ? 'w-64 opacity-100' : 'pointer-events-none w-0 opacity-0'
+                )}
+              >
+                <div className="flex w-64 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-900 px-3 py-2 shadow-2xl focus-within:border-tuao-primary/50">
+                  <Search size={14} className="shrink-0 text-tuao-text-secondary" />
+                  <input
+                    ref={searchInputRef}
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
+                    onBlur={() => {
+                      if (!searchQuery.trim()) setSearchExpanded(false);
+                    }}
+                    placeholder="Buscar jogos..."
+                    className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-tuao-text-secondary"
+                  />
                 </div>
-              </div>
-              <div className="h-1 w-[120px] max-w-full overflow-hidden rounded-full bg-tuao-dark-800">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-tuao-primary transition-[width] duration-300"
-                  style={{ width: `${Math.min(100, levelPct)}%` }}
-                />
               </div>
             </div>
 
-            {/* Notificações */}
+            {/* 2. Saldo + Depositar */}
+            <div className="relative min-w-0" ref={walletRef}>
+              <div
+                className={cn(
+                  'flex max-w-[14rem] min-w-0 items-center gap-1.5 rounded-lg bg-tuao-dark-800 p-1 pl-2.5 sm:max-w-none sm:gap-2 sm:pl-3',
+                  balanceFlash === 'up' && 'ring-1 ring-emerald-500/60',
+                  balanceFlash === 'down' && 'ring-1 ring-red-500/60'
+                )}
+              >
+                <button
+                  type="button"
+                  data-wallet-balance
+                  onClick={() => {
+                    setWalletOpen((v) => !v);
+                    setProfileOpen(false);
+                    setNotifOpen(false);
+                    setSearchExpanded(false);
+                  }}
+                  aria-expanded={walletOpen}
+                  aria-haspopup="dialog"
+                  aria-label="Carteira e saldo"
+                  className="flex min-w-0 items-center gap-1.5 py-1"
+                >
+                  <Coins size={16} className="hidden shrink-0 text-tuao-text-secondary sm:block" strokeWidth={2} />
+                  <span
+                    className={cn(
+                      'min-w-0 truncate text-xs font-extrabold tabular-nums tracking-tight text-white transition-colors sm:text-sm',
+                      balanceFlash === 'up' && 'text-emerald-300',
+                      balanceFlash === 'down' && 'text-red-300'
+                    )}
+                  >
+                    R$ {formatBalancePtBr(animatedBalance)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWalletOpen(true);
+                    setProfileOpen(false);
+                    setNotifOpen(false);
+                    setSearchExpanded(false);
+                  }}
+                  className="shrink-0 rounded-md bg-tuao-primary px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-tuao-dark-950 transition-colors hover:bg-tuao-primary-hover sm:px-3 sm:text-xs"
+                >
+                  Depositar
+                </button>
+              </div>
+              {walletOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-tuao-dark-800 bg-tuao-dark-900 p-4 shadow-2xl">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-tuao-text-secondary">Saldo disponível</p>
+                  <p className="mt-1 text-xl font-black tabular-nums text-white">R$ {formatBalancePtBr(animatedBalance)}</p>
+                  <p className="mt-3 text-[11px] text-tuao-text-secondary">
+                    Depósitos e saques serão integrados em breve.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-4 w-full rounded-lg bg-tuao-cta py-2.5 text-sm font-black text-white shadow-panel transition-colors hover:bg-tuao-cta-hover"
+                    onClick={() => setWalletOpen(false)}
+                  >
+                    Depositar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Notificações */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
@@ -255,13 +353,14 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                   });
                   setWalletOpen(false);
                   setProfileOpen(false);
+                  setSearchExpanded(false);
                 }}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-tuao-dark-800"
+                className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-tuao-dark-800 text-white transition-colors hover:bg-tuao-dark-700"
                 aria-label="Notificações"
               >
-                <Bell size={20} strokeWidth={2} />
+                <Bell size={18} strokeWidth={2} />
                 {notificationCount > 0 && (
-                  <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+                  <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </span>
                 )}
@@ -318,7 +417,23 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
               )}
             </div>
 
-            {/* Perfil */}
+            {/* 4. Nível */}
+            <div className="hidden min-w-[7.5rem] flex-col gap-1 sm:flex" title={tier.label}>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[11px] font-semibold text-tuao-text-secondary">
+                  Nível <span className="font-bold text-white">{level}</span>
+                </p>
+                <p className="text-[11px] font-bold tabular-nums text-white">{Math.round(levelPct)}%</p>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-tuao-dark-800">
+                <div
+                  className="h-full rounded-full bg-amber-600/90 transition-[width] duration-300"
+                  style={{ width: `${Math.min(100, levelPct)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 5. Perfil */}
             <div className="relative" ref={profileRef}>
               <button
                 type="button"
@@ -326,11 +441,12 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                   setProfileOpen((v) => !v);
                   setWalletOpen(false);
                   setNotifOpen(false);
+                  setSearchExpanded(false);
                 }}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-tuao-dark-700 bg-tuao-dark-800 text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-tuao-dark-800 text-tuao-text-secondary transition-colors hover:bg-tuao-dark-700 hover:text-white"
                 aria-label="Conta"
               >
-                <User size={20} strokeWidth={2} />
+                <User size={18} strokeWidth={2} />
               </button>
               {profileOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-tuao-dark-800 bg-tuao-dark-900 py-2 shadow-2xl">
@@ -360,80 +476,20 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                 </div>
               )}
             </div>
-
-            {/* Saldo + dropdown */}
-            <div className="relative min-w-0" ref={walletRef}>
-              <button
-                type="button"
-                data-wallet-balance
-                onClick={() => {
-                  setWalletOpen((v) => !v);
-                  setProfileOpen(false);
-                  setNotifOpen(false);
-                }}
-                aria-expanded={walletOpen}
-                aria-haspopup="dialog"
-                aria-label="Carteira e saldo"
-                className={cn(
-                  'flex max-w-[10.5rem] min-w-0 items-center justify-center rounded-lg border border-tuao-dark-700/85 bg-tuao-dark-950 px-3 py-2 transition-colors hover:border-tuao-dark-600 sm:max-w-none sm:px-4 sm:py-2.5',
-                  balanceFlash === 'up' && 'border-emerald-500/60 text-emerald-300',
-                  balanceFlash === 'down' && 'border-red-500/60 text-red-300'
-                )}
-              >
-                <span
-                  className={cn(
-                    'min-w-0 truncate text-center text-xs font-extrabold tabular-nums tracking-tight text-white transition-colors sm:text-sm',
-                    balanceFlash === 'up' && 'text-emerald-300',
-                    balanceFlash === 'down' && 'text-red-300'
-                  )}
-                >
-                  R$ {formatBalancePtBr(animatedBalance)}
-                </span>
-              </button>
-              {walletOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-tuao-dark-800 bg-tuao-dark-900 p-4 shadow-2xl">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-tuao-text-secondary">Saldo disponível</p>
-                  <p className="mt-1 text-xl font-black tabular-nums text-white">R$ {formatBalancePtBr(animatedBalance)}</p>
-                  <p className="mt-3 text-[11px] text-tuao-text-secondary">
-                    Depósitos e saques serão integrados em breve.
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-4 w-full rounded-lg bg-tuao-primary py-2.5 text-sm font-black text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] transition-colors hover:bg-tuao-primary-hover"
-                    onClick={() => setWalletOpen(false)}
-                  >
-                    Depositar
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* CTA Depositar (atalho — espelho Blaze) */}
-            <button
-              type="button"
-              onClick={() => {
-                setWalletOpen(true);
-                setProfileOpen(false);
-                setNotifOpen(false);
-              }}
-              className="hidden rounded-lg bg-tuao-primary px-4 py-2.5 text-xs font-black uppercase tracking-wide text-tuao-dark-950 shadow-[0_0_18px_rgba(0,240,255,0.3)] transition-colors hover:bg-tuao-primary-hover sm:block"
-            >
-              Depositar
-            </button>
           </>
         ) : (
           <>
             <button
               type="button"
               onClick={openLoginModal}
-              className="px-2 text-sm font-bold text-white transition-colors hover:text-tuao-primary sm:px-3"
+              className="rounded-lg bg-tuao-dark-800 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition-colors hover:bg-tuao-dark-700"
             >
               Entrar
             </button>
             <button
               type="button"
               onClick={openRegisterModal}
-              className="rounded-lg bg-tuao-primary px-4 py-2.5 text-xs font-black uppercase tracking-wide text-tuao-dark-950 shadow-[0_0_18px_rgba(0,240,255,0.3)] transition-colors hover:bg-tuao-primary-hover"
+              className="rounded-lg bg-tuao-primary px-4 py-2.5 text-xs font-black uppercase tracking-wide text-tuao-dark-950 shadow-panel transition-colors hover:bg-tuao-primary-hover"
             >
               Cadastre-se
             </button>

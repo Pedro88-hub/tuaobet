@@ -68,33 +68,33 @@ const games: GameItem[] = [
 
 export const OriginalGamesGrid: React.FC = () => {
   return (
-    <section id="jogos-originais" className="mb-12 scroll-mt-24">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 px-0.5">
+    <section id="jogos-originais" className="mb-10 scroll-mt-24">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4 px-0.5">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-white md:text-3xl">Jogos originais</h2>
+          <h2 className="text-xl font-black tracking-tight text-white md:text-2xl">Jogos originais</h2>
           <p className="mt-1 max-w-xl text-sm text-tuao-text-secondary">
             Os clássicos da casa — rápidos de jogar, fáceis de perceber.
           </p>
         </div>
         <Link
           to="/fairness"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-tuao-primary transition hover:text-tuao-primary-hover"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-tuao-cta transition hover:text-tuao-cta-hover"
         >
           Provably Fair
           <ChevronRight size={18} />
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 scrollbar-thin">
         {games.map((g) => (
           <Link
             key={g.path}
             to={g.path}
             className={cn(
-              'group relative overflow-hidden rounded-2xl border border-tuao-dark-700 bg-tuao-dark-900 p-6 transition-all',
+              'group relative w-[min(78vw,220px)] shrink-0 snap-start overflow-hidden rounded-xl border border-tuao-dark-700 bg-tuao-dark-900 p-4 shadow-panel transition-colors',
               g.maintenance
                 ? 'hover:border-amber-500/40'
-                : 'hover:border-tuao-primary/45 hover:shadow-neon'
+                : 'hover:border-tuao-cta/45'
             )}
           >
             <div
@@ -103,38 +103,35 @@ export const OriginalGamesGrid: React.FC = () => {
                 g.gradient
               )}
             />
-            <div className="relative flex items-start justify-between gap-4">
+            <div className="relative flex flex-col gap-3">
+              <div
+                className={cn(
+                  'flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-black/25',
+                  'transition group-hover:border-white/20'
+                )}
+              >
+                <g.icon size={20} className={g.accent} />
+              </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className={cn('text-xs font-bold uppercase tracking-wider', g.accent)}>{g.name}</p>
                   {g.maintenance && (
-                    <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-300">
+                    <span className="rounded-md border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-300">
                       Manutenção
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-lg font-bold text-white">{g.tagline}</p>
+                <p className="mt-1 text-sm font-semibold leading-snug text-white">{g.tagline}</p>
               </div>
               <div
                 className={cn(
-                  'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/25',
-                  'transition group-hover:border-tuao-primary/40 group-hover:bg-black/40'
+                  'mt-1 flex items-center text-xs font-semibold',
+                  g.maintenance ? 'text-amber-300' : 'text-tuao-cta'
                 )}
               >
-                <g.icon size={22} className={g.accent} />
+                {g.maintenance ? 'Em manutenção' : 'Jogar'}
+                <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
               </div>
-            </div>
-            <div
-              className={cn(
-                'relative mt-6 flex items-center text-sm font-semibold',
-                g.maintenance ? 'text-amber-300' : 'text-tuao-primary'
-              )}
-            >
-              {g.maintenance ? 'Em manutenção' : 'Jogar agora'}
-              <ChevronRight
-                size={18}
-                className="transition-transform group-hover:translate-x-0.5"
-              />
             </div>
           </Link>
         ))}

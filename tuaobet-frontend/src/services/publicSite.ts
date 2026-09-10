@@ -48,3 +48,20 @@ export async function fetchPublicAnnouncement(): Promise<PublicAnnouncement | nu
     accentColor: a.accentColor ?? null,
   };
 }
+
+export type PublicRecentWin = {
+  id: string;
+  game: string;
+  amount: number;
+  multiplier: number | null;
+  payout: number;
+  createdAt: string;
+  username: string;
+};
+
+export async function fetchPublicRecentWins(limit = 20): Promise<PublicRecentWin[]> {
+  const r = await apiFetch<{ wins: PublicRecentWin[] }>(
+    `/api/public/recent-wins?limit=${limit}&minPayout=1`
+  );
+  return Array.isArray(r.wins) ? r.wins : [];
+}
