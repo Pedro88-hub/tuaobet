@@ -114,7 +114,11 @@ export function useDoubleGame() {
           data.resultNumber != null &&
           data.color
         ) {
-          setResult({ number: data.resultNumber, color: data.color });
+          setResult((prev) =>
+            prev?.number === data.resultNumber && prev?.color === data.color
+              ? prev
+              : { number: data.resultNumber!, color: data.color! }
+          );
         }
         if (data.serverSeedHash && data.roundId != null) {
           setFairnessCommit({ roundId: data.roundId, serverSeedHash: data.serverSeedHash });
@@ -137,7 +141,11 @@ export function useDoubleGame() {
 
     socket.on('double:spin', (data: { resultNumber: number; color: DoubleColor }) => {
       setGameState('SPINNING');
-      setResult({ number: data.resultNumber, color: data.color });
+      setResult((prev) =>
+        prev?.number === data.resultNumber && prev?.color === data.color
+          ? prev
+          : { number: data.resultNumber, color: data.color }
+      );
       stopCrashSound('bet');
     });
 

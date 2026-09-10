@@ -27,6 +27,13 @@ import {
 // 0 = Branco, 1-7 = Vermelho, 8-14 = Preto
 const ROULETTE_ORDER = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8];
 const TILE_SIZE = 80; // Largura de cada quadrado em px
+/** Voltas na animação; a strip precisa de pelo menos loops+1 cópias. */
+const ROULETTE_SPIN_LOOPS = 6;
+const ROULETTE_STRIP_COPIES = ROULETTE_SPIN_LOOPS + 2;
+/** Duração da transition CSS do giro — alinhar texto de resultado a esta duração. */
+const ROULETTE_SPIN_MS = 6800;
+/** Retorno da faixa ao branco no WAITING — countdown só arma depois disto. */
+const STRIP_RESET_MS = 1500;
 
 const MAX_VISIBLE_BETS_PER_COLUMN = 7;
 const DOUBLE_HISTORY_MODAL_PAGE_SIZE = 20;
@@ -92,24 +99,53 @@ export function DoubleGame() {
     !queuedNextBet &&
     (gameState === 'SPINNING' || gameState === 'RESULT');
 
-  // Contagem local suave (segundos fracionários) — realinhada ao servidor em cada tick
+  // Contagem local suave — só regressa depois da faixa na origem; nunca salta o valor ao armar
   const [timeLeft, setTimeLeft] = useState(countdown);
+  const [countdownArmed, setCountdownArmed] = useState(false);
+  const [stripReady, setStripReady] = useState(false);
+  const countdownArmedRef = useRef(false);
 
   useEffect(() => {
     return onCrashSoundMuteChange(setSoundMuted);
   }, []);
 
   useEffect(() => {
-    setTimeLeft(countdown);
-  }, [countdown]);
+    if (gameState !== 'WAITING') {
+      countdownArmedRef.current = false;
+      setCountdownArmed(false);
+      setStripReady(false);
+      return;
+    }
+    countdownArmedRef.current = false;
+    setCountdownArmed(false);
+    setStripReady(false);
+    setTimeLeft(DOUBLE_COUNTDOWN_SECONDS);
+    const readyTimer = setTimeout(() => setStripReady(true), STRIP_RESET_MS);
+    return () => clearTimeout(readyTimer);
+  }, [gameState]);
 
   useEffect(() => {
-    if (gameState !== 'WAITING') return;
+    if (gameState !== 'WAITING' || !stripReady) return;
+    if (countdown <= 0) return;
+
+    // Primeiro tick “ao vivo” após a faixa prontar: começa sempre no cheio (evita 12→9).
+    if (!countdownArmedRef.current) {
+      countdownArmedRef.current = true;
+      setCountdownArmed(true);
+      setTimeLeft(DOUBLE_COUNTDOWN_SECONDS);
+      return;
+    }
+    // Só alinha com o servidor se a diferença for de ~1 tick (evita salto grande).
+    setTimeLeft((prev) => (prev - countdown > 1.5 ? prev : countdown));
+  }, [countdown, stripReady, gameState]);
+
+  useEffect(() => {
+    if (gameState !== 'WAITING' || !countdownArmed) return;
     const interval = setInterval(() => {
       setTimeLeft((prev) => Math.max(0, prev - 0.02));
     }, 20);
     return () => clearInterval(interval);
-  }, [gameState]);
+  }, [gameState, countdownArmed]);
 
   useEffect(() => {
     if (roundsHistoryOpen) setHistoryModalPage(0);
@@ -143,7 +179,13 @@ export function DoubleGame() {
 
   // Referência para o container da roleta (para animação CSS)
   const rouletteRef = useRef<HTMLDivElement>(null);
-  const offsetRef = useRef(0);
+  /** Evita reiniciar a transition de 6.8s se result/gameState re-dispararem no meio do giro. */
+  const spinStartedRef = useRef(false);
+  const spinRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Só true após a animação do giro terminar — controla “TuãoBet Girou N!” e histórico. */
+  const [resultRevealed, setResultRevealed] = useState(false);
+  /** Cópia local do resultado (o hook zera `result` no WAITING). */
+  const [heldResult, setHeldResult] = useState<{ color: DoubleColor; number: number } | null>(null);
 
   const onSelectColor = (color: DoubleColor) => {
     if (!isAuthenticated) {
@@ -204,66 +246,70 @@ export function DoubleGame() {
         ? betAmountValue
         : 0;
 
-  // Calcular posição final da roleta
+  // Calcular posição final da roleta — para já no centro do tile (sem correção pós-parada)
   useEffect(() => {
     if (!rouletteRef.current) return;
 
     const whiteIndex = ROULETTE_ORDER.indexOf(0);
-    // Posição inicial (Branco no primeiro loop)
     const startPosition = whiteIndex * TILE_SIZE + TILE_SIZE / 2;
 
     if (gameState === 'SPINNING' && result) {
-      // 1. Movimento fluido e desaceleração
-      // Calcular offset aleatório para simular parada na borda (ponta)
-      // Tile = 80px. Offset entre -35px e +35px para ficar na borda mas ainda dentro do tile
-      const newOffset = (Math.random() - 0.5) * 70;
-      offsetRef.current = newOffset;
+      if (spinStartedRef.current) return;
+      spinStartedRef.current = true;
+      setHeldResult(result);
+      setResultRevealed(false);
+      if (spinRevealTimerRef.current) clearTimeout(spinRevealTimerRef.current);
+      spinRevealTimerRef.current = setTimeout(() => {
+        setResultRevealed(true);
+        spinRevealTimerRef.current = null;
+      }, ROULETTE_SPIN_MS);
 
       const targetIndexInPattern = ROULETTE_ORDER.indexOf(result.number);
+      const totalIndex = ROULETTE_ORDER.length * ROULETTE_SPIN_LOOPS + targetIndexInPattern;
+      const finalPosition = totalIndex * TILE_SIZE + TILE_SIZE / 2;
 
-      // Vamos mirar em um bloco lá na frente (ex: volta 4)
-      const loops = 4;
-      const totalIndex = ROULETTE_ORDER.length * loops + targetIndexInPattern;
-
-      // Posição final com o offset (parada imperfeita)
-      const finalPosition = totalIndex * TILE_SIZE + TILE_SIZE / 2 + newOffset;
-
-      // Easing personalizado para desaceleração progressiva realista
-      // Ajustado para 3.8s para garantir que pare antes do estado RESULT (4s)
-      rouletteRef.current.style.transition = 'transform 3.8s cubic-bezier(0.1, 0.05, 0.1, 1)';
+      rouletteRef.current.style.transition = `transform ${ROULETTE_SPIN_MS}ms cubic-bezier(0.1, 0.05, 0.1, 1)`;
       rouletteRef.current.style.transform = `translateX(-${finalPosition}px)`;
-    } else if (gameState === 'RESULT' && result) {
-      // 2. Parada e correção de alinhamento
-      // Quando entra em RESULT, faz o ajuste fino para o centro
-      const targetIndexInPattern = ROULETTE_ORDER.indexOf(result.number);
-      const loops = 4;
-      const totalIndex = ROULETTE_ORDER.length * loops + targetIndexInPattern;
-
-      // Posição exata no centro (sem offset)
-      const centerPosition = totalIndex * TILE_SIZE + TILE_SIZE / 2;
-
-      // Delay para garantir percepção de parada
-      const timer = setTimeout(() => {
-        if (rouletteRef.current) {
-          // Movimento técnico e suave para centralizar
-          rouletteRef.current.style.transition = 'transform 0.4s ease-out';
-          rouletteRef.current.style.transform = `translateX(-${centerPosition}px)`;
-        }
-      }, 200);
-
-      return () => clearTimeout(timer);
+    } else if (gameState === 'RESULT') {
+      if (result) setHeldResult(result);
+      // Sync mid-RESULT (sem ter animado o giro): revelar na hora.
+      if (!spinStartedRef.current) setResultRevealed(true);
+      // Mantém a faixa no número; o hold de 8s é só no backend (RESULT → WAITING).
     } else if (gameState === 'WAITING') {
-      // 3. Retorno e reinício
-      // Retorna suavemente para a posição inicial (Branco)
-      rouletteRef.current.style.transition = 'transform 1.5s ease-in-out';
+      // Servidor já esperou o RESULT; abrir apostas e countdown na hora (sem hold extra).
+      spinStartedRef.current = false;
+      setResultRevealed(false);
+      setHeldResult(null);
+      if (spinRevealTimerRef.current) {
+        clearTimeout(spinRevealTimerRef.current);
+        spinRevealTimerRef.current = null;
+      }
+      rouletteRef.current.style.transition = `transform ${STRIP_RESET_MS}ms ease-in-out`;
       rouletteRef.current.style.transform = `translateX(-${startPosition}px)`;
     }
   }, [gameState, result]);
 
+  useEffect(() => {
+    return () => {
+      if (spinRevealTimerRef.current) clearTimeout(spinRevealTimerRef.current);
+    };
+  }, []);
+
+  /** Não mostrar o giro atual no histórico até a roleta parar (evita spoiler). */
+  const pendingHistoryResult = heldResult ?? result;
+  const displayHistory =
+    !resultRevealed &&
+    pendingHistoryResult &&
+    history.length > 0 &&
+    history[0].number === pendingHistoryResult.number &&
+    history[0].color === pendingHistoryResult.color
+      ? history.slice(1)
+      : history;
+
   // Faixa da roleta — mesmos quadrados que Giros anteriores / cartões de apostas
   const renderRouletteStrip = () => {
     const strip: number[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < ROULETTE_STRIP_COPIES; i++) {
       strip.push(...ROULETTE_ORDER);
     }
     return strip.map((num, idx) => (
@@ -511,14 +557,14 @@ export function DoubleGame() {
                   dir="rtl"
                   className="min-h-8 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  {history.length === 0 ? (
+                  {displayHistory.length === 0 ? (
                     <span dir="ltr" className="inline-flex h-8 items-center text-xs text-tuao-dark-700">
                       Ainda sem giros registrados.
                     </span>
                   ) : (
                     /* RTL: começa à direita (junto ao botão); mais recente → esquerda com os mais antigos */
                     <div className="inline-flex h-8 w-max max-w-none items-center gap-1">
-                      {history.map((item, idx) => (
+                      {displayHistory.map((item, idx) => (
                         <div key={`${item.number}-${idx}`} dir="ltr">
                           <DoubleRouletteTile
                             number={item.number}
@@ -545,9 +591,9 @@ export function DoubleGame() {
               </div>
             </div>
 
-            {/* Barra de tempo */}
+            {/* Barra de tempo / status do giro */}
             <div className="z-20 shrink-0 px-3 pb-3 pt-3 sm:px-4">
-              {gameState === 'WAITING' ? (
+              {gameState === 'WAITING' && timeLeft > 0 ? (
                 <GameCountdownBar
                   progress={
                     DOUBLE_COUNTDOWN_SECONDS > 0
@@ -559,13 +605,15 @@ export function DoubleGame() {
                   Girando em {timeLeft.toFixed(2)}s
                 </GameCountdownBar>
               ) : (
-                <div className="mx-auto flex h-7 w-full max-w-xl items-center justify-center rounded-md border border-tuao-dark-800 bg-[#1a242d]/90 lg:bg-tuao-dark-950/80">
+                <div
+                  className="mx-auto flex h-7 w-full max-w-xl items-center justify-center rounded-md border border-tuao-dark-800 bg-[#1a242d]/90 lg:bg-tuao-dark-950/80"
+                  role="status"
+                  aria-live="polite"
+                >
                   <span className="text-xs font-bold uppercase tracking-wider text-tuao-text-secondary">
-                    {gameState === 'SPINNING'
-                      ? 'Girando…'
-                      : gameState === 'RESULT'
-                        ? 'Resultado'
-                        : '—'}
+                    {resultRevealed && heldResult
+                      ? `TuãoBet Girou ${heldResult.number}!`
+                      : 'Girando…'}
                   </span>
                 </div>
               )}
@@ -689,12 +737,12 @@ export function DoubleGame() {
         size="wide"
         headerIcon={<BarChart2 className="h-5 w-5" strokeWidth={2.2} />}
       >
-        {history.length === 0 ? (
+        {displayHistory.length === 0 ? (
           <p className="text-center text-sm text-tuao-text-secondary">Ainda sem giros registrados.</p>
         ) : (
           <>
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 [scrollbar-width:thin]">
-              {history
+              {displayHistory
                 .slice(
                   historyModalPage * DOUBLE_HISTORY_MODAL_PAGE_SIZE,
                   historyModalPage * DOUBLE_HISTORY_MODAL_PAGE_SIZE + DOUBLE_HISTORY_MODAL_PAGE_SIZE
@@ -709,7 +757,7 @@ export function DoubleGame() {
                   />
                 ))}
             </div>
-            {history.length > DOUBLE_HISTORY_MODAL_PAGE_SIZE && (
+            {displayHistory.length > DOUBLE_HISTORY_MODAL_PAGE_SIZE && (
               <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -722,17 +770,18 @@ export function DoubleGame() {
                 </button>
                 <span className="text-xs font-semibold tabular-nums text-tuao-text-secondary">
                   Página {historyModalPage + 1} de{' '}
-                  {Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE)}
+                  {Math.ceil(displayHistory.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE)}
                 </span>
                 <button
                   type="button"
                   onClick={() =>
                     setHistoryModalPage((p) =>
-                      Math.min(Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1, p + 1)
+                      Math.min(Math.ceil(displayHistory.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1, p + 1)
                     )
                   }
                   disabled={
-                    historyModalPage >= Math.ceil(history.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1
+                    historyModalPage >=
+                    Math.ceil(displayHistory.length / DOUBLE_HISTORY_MODAL_PAGE_SIZE) - 1
                   }
                   className="inline-flex items-center gap-1 rounded-lg border border-tuao-dark-700 px-3 py-2 text-xs font-bold text-tuao-text-secondary transition-colors hover:border-tuao-dark-600 hover:text-white disabled:opacity-40"
                 >

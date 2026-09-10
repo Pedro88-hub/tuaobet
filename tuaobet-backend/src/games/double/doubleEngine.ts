@@ -209,12 +209,28 @@ function emitDoubleSnapshot(socket: Socket) {
 }
 
 export const initDoubleGame = (io: Server) => {
+  let bettingStartTimer: ReturnType<typeof setTimeout> | null = null;
+  let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+  const clearBettingTimers = () => {
+    if (bettingStartTimer) {
+      clearTimeout(bettingStartTimer);
+      bettingStartTimer = null;
+    }
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+  };
+
   const doubleLoop = () => {
+    clearBettingTimers();
+    cancelSimulatedBets();
+    cancelSimulatedBets = () => {};
+
     doubleState = 'WAITING';
     roundBets = [];
     roundSimulatedBets = [];
-    cancelSimulatedBets();
-    cancelSimulatedBets = () => {};
     doubleRoundId += 1;
 
     const thisRoundId = doubleRoundId;
@@ -246,32 +262,49 @@ export const initDoubleGame = (io: Server) => {
     });
     io.emit('double:bets', shuffleDisplay(displayBetsForClients()));
 
-    if (process.env.DOUBLE_SIMULATOR_DISABLED !== '1' && process.env.DOUBLE_SIMULATOR_DISABLED !== 'true') {
-      cancelSimulatedBets = scheduleSimulatedDoubleBets(io, {
-        roundDurationMs: countdown * 1000,
-        isRoundOpen: () => doubleState === 'WAITING' && doubleRoundId === thisRoundId,
-        onBet: (bet) => {
-          roundSimulatedBets.push(bet);
-        },
-      });
-    }
+    /** Espera a faixa voltar ao início no cliente antes de tickar countdown / bots. */
+    const STRIP_RESET_MS = 1500;
+    bettingStartTimer = setTimeout(() => {
+      bettingStartTimer = null;
+      if (doubleState !== 'WAITING' || doubleRoundId !== thisRoundId) return;
 
-    const timer = setInterval(() => {
-      countdown -= 1;
-      doubleLiveCountdown = Math.max(0, countdown);
+      // Sinal explícito de abertura — cliente arma a barra no 12.
       io.emit('double:countdown', countdown);
 
-      if (countdown <= 0) {
-        clearInterval(timer);
-        spinRoulette(io);
+      if (process.env.DOUBLE_SIMULATOR_DISABLED !== '1' && process.env.DOUBLE_SIMULATOR_DISABLED !== 'true') {
+        cancelSimulatedBets = scheduleSimulatedDoubleBets(io, {
+          roundDurationMs: countdown * 1000,
+          isRoundOpen: () => doubleState === 'WAITING' && doubleRoundId === thisRoundId,
+          onBet: (bet) => {
+            roundSimulatedBets.push(bet);
+          },
+        });
       }
-    }, 1000);
+
+      countdownTimer = setInterval(() => {
+        if (doubleState !== 'WAITING' || doubleRoundId !== thisRoundId) {
+          if (countdownTimer) clearInterval(countdownTimer);
+          countdownTimer = null;
+          return;
+        }
+        countdown -= 1;
+        doubleLiveCountdown = Math.max(0, countdown);
+        io.emit('double:countdown', countdown);
+
+        if (countdown <= 0) {
+          if (countdownTimer) clearInterval(countdownTimer);
+          countdownTimer = null;
+          spinRoulette(io);
+        }
+      }, 1000);
+    }, STRIP_RESET_MS);
   };
 
   const spinRoulette = (io: Server) => {
     const sec = doubleRoundSecret;
     if (!sec) return;
 
+    clearBettingTimers();
     cancelSimulatedBets();
     cancelSimulatedBets = () => {};
 
@@ -291,7 +324,7 @@ export const initDoubleGame = (io: Server) => {
 
     setTimeout(() => {
       void settleRound(io, resultNumber, color);
-    }, 4000);
+    }, 7000);
   };
 
   const settleRound = async (io: Server, resultNumber: number, color: Color) => {
@@ -299,45 +332,26 @@ export const initDoubleGame = (io: Server) => {
 
     const winners: { id: string; username: string; amount: number; color: Color; winAmount: number }[] =
       [];
+    const settlements: {
+      b: (typeof roundBets)[number];
+      mult: number;
+      won: boolean;
+      payout: number;
+    }[] = [];
 
     for (const b of roundBets) {
       const mult = payoutMultiplier(b.color, color);
       const won = mult > 0;
       const payout = won ? Math.round(b.amount * mult * 100) / 100 : 0;
-
-      try {
-        if (won) {
-          await prisma.$transaction(async (tx) => {
-            await creditPayout(b.userId, payout, `Double — vitória ${mult}x`, tx);
-            await tx.bet.update({
-              where: { id: b.betId },
-              data: {
-                result: 'win',
-                multiplier: mult,
-                payout,
-              },
-            });
-          });
-          winners.push({
-            id: b.userId,
-            username: b.username,
-            amount: b.amount,
-            color: b.color,
-            winAmount: payout,
-          });
-          pushWalletBalance(b.userId);
-        } else {
-          await prisma.bet.update({
-            where: { id: b.betId },
-            data: {
-              result: 'loss',
-              multiplier: mult || null,
-              payout: 0,
-            },
-          });
-        }
-      } catch {
-        /* ignore single row failure */
+      settlements.push({ b, mult, won, payout });
+      if (won) {
+        winners.push({
+          id: b.userId,
+          username: b.username,
+          amount: b.amount,
+          color: b.color,
+          winAmount: payout,
+        });
       }
     }
 
@@ -348,7 +362,7 @@ export const initDoubleGame = (io: Server) => {
     const sec = doubleRoundSecret;
     const settledRoundId = doubleRoundId;
 
-    // Emitir imediatamente para a UI não esperar o Postgres.
+    // Emitir na hora — a UI não deve esperar o Postgres dos payouts.
     io.emit('double:state', {
       state: 'RESULT',
       countdown: 0,
@@ -367,15 +381,47 @@ export const initDoubleGame = (io: Server) => {
       serverSeedHash: pub?.roundId === settledRoundId ? pub.serverSeedHash : undefined,
     });
 
+    /** Tempo com o resultado visível antes da próxima rodada. */
+    const RESULT_DISPLAY_MS = 8000;
+    setTimeout(() => doubleLoop(), RESULT_DISPLAY_MS);
+
     void (async () => {
+      for (const { b, mult, won, payout } of settlements) {
+        try {
+          if (won) {
+            await prisma.$transaction(async (tx) => {
+              await creditPayout(b.userId, payout, `Double — vitória ${mult}x`, tx);
+              await tx.bet.update({
+                where: { id: b.betId },
+                data: {
+                  result: 'win',
+                  multiplier: mult,
+                  payout,
+                },
+              });
+            });
+            pushWalletBalance(b.userId);
+          } else {
+            await prisma.bet.update({
+              where: { id: b.betId },
+              data: {
+                result: 'loss',
+                multiplier: mult || null,
+                payout: 0,
+              },
+            });
+          }
+        } catch {
+          /* ignore single row failure */
+        }
+      }
+
       try {
         await persistDoubleResult(resultNumber, color, settledRoundId);
       } catch (e) {
         console.error('[double] falha ao persistir histórico:', e);
       }
     })();
-
-    setTimeout(() => doubleLoop(), 3000);
   };
 
   io.on('connection', (socket) => {
