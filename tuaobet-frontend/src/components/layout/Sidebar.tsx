@@ -42,24 +42,22 @@ type SidebarGame = {
   name: string;
   icon: React.ElementType;
   path: string;
-  color: string;
   maintenance?: boolean;
 };
 
 const games: SidebarGame[] = [
-  { name: 'Crash', icon: Rocket, path: '/crash', color: 'text-red-500' },
-  { name: 'Double', icon: Disc, path: '/double', color: 'text-white' },
-  { name: 'Mines', icon: Bomb, path: '/mines', color: 'text-yellow-500' },
-  { name: 'Dice', icon: Dices, path: '/dice', color: 'text-blue-500' },
-  { name: 'Plinko', icon: LayoutGrid, path: '/plinko', color: 'text-pink-500' },
+  { name: 'Crash', icon: Rocket, path: '/crash' },
+  { name: 'Double', icon: Disc, path: '/double' },
+  { name: 'Mines', icon: Bomb, path: '/mines' },
+  { name: 'Dice', icon: Dices, path: '/dice' },
+  { name: 'Plinko', icon: LayoutGrid, path: '/plinko' },
   {
     name: 'Baccarat',
     icon: Spade,
     path: '/baccarat',
-    color: 'text-emerald-400',
     maintenance: BACCARAT_IN_MAINTENANCE,
   },
-  { name: 'Justiça', icon: Scale, path: '/fairness', color: 'text-tuao-primary' },
+  { name: 'Justiça', icon: Scale, path: '/fairness' },
 ];
 
 function BasketballIcon({ className }: { className?: string }) {
@@ -332,7 +330,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isMobileOpen, clos
                 >
                   <game.icon
                     size={20}
-                    className={cn('transition-colors', isActive ? game.color : 'group-hover:text-white')}
+                    className={cn(
+                      'transition-colors',
+                      isActive ? 'text-tuao-primary' : 'group-hover:text-white'
+                    )}
                   />
 
                   <span

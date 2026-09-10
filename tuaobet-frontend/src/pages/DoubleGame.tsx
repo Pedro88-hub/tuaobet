@@ -760,7 +760,7 @@ function ColumnColorIcon({ color }: { color: DoubleColor }) {
   if (color === 'red') {
     return (
       <div
-        className="h-9 w-9 shrink-0 rounded-full bg-tuao-primary shadow-[0_0_14px_rgba(0,240,255,0.35)] ring-2 ring-white/15"
+        className="h-9 w-9 shrink-0 rounded-md bg-tuao-primary shadow-[0_0_14px_rgba(0,240,255,0.35)] ring-2 ring-white/15"
         aria-hidden
       />
     );
@@ -782,7 +782,7 @@ function ColumnColorIcon({ color }: { color: DoubleColor }) {
   }
   return (
     <div
-      className="h-9 w-9 shrink-0 rounded-full border-2 border-tuao-dark-600 bg-tuao-dark-800 shadow-inner"
+      className="h-9 w-9 shrink-0 rounded-md border-2 border-tuao-dark-600 bg-tuao-dark-800 shadow-inner"
       aria-hidden
     />
   );

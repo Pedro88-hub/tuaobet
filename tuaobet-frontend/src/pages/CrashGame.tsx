@@ -65,6 +65,7 @@ export function CrashGame() {
     queuedNextBet,
     serverCashedOut,
     serverPayout,
+    serverCashoutMultiplier,
     serverBetAmount,
     lastError,
     fairnessCommit,
@@ -500,10 +501,13 @@ export function CrashGame() {
                     {serverCashedOut && (
                       <div className="mt-2 border-t border-white/25 pt-2 text-center animate-in fade-in duration-300">
                         <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-200">
-                          Ganhaste
+                          Ganho
                         </span>
                         <span className="mt-0.5 block text-sm font-bold tabular-nums text-white sm:text-base">
-                          R$ {serverPayout.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          R$ {formatBrlAmount(serverPayout)}
+                          {serverCashoutMultiplier > 0
+                            ? ` · ${formatMultiplierPt(serverCashoutMultiplier)}`
+                            : ''}
                         </span>
                       </div>
                     )}
@@ -523,10 +527,13 @@ export function CrashGame() {
                     {serverCashedOut && (
                       <div className="mt-1.5 w-full border-t border-white/10 pt-1.5 text-center animate-in fade-in duration-300">
                         <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                          Ganhaste
+                          Ganho
                         </span>
                         <span className="mt-0.5 block text-sm font-bold tabular-nums text-emerald-300 sm:text-base">
-                          R$ {serverPayout.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          R$ {formatBrlAmount(serverPayout)}
+                          {serverCashoutMultiplier > 0
+                            ? ` · ${formatMultiplierPt(serverCashoutMultiplier)}`
+                            : ''}
                         </span>
                       </div>
                     )}

@@ -35,6 +35,7 @@ export function useCrashGame() {
   const [queuedNextBet, setQueuedNextBet] = useState(false);
   const [serverCashedOut, setServerCashedOut] = useState(false);
   const [serverPayout, setServerPayout] = useState(0);
+  const [serverCashoutMultiplier, setServerCashoutMultiplier] = useState(0);
   const [serverBetAmount, setServerBetAmount] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
   const [fairnessCommit, setFairnessCommit] = useState<CrashFairnessCommit | null>(null);
@@ -115,6 +116,7 @@ export function useCrashGame() {
           serverCashedOutRef.current = false;
           setServerCashedOut(false);
           setServerPayout(0);
+          setServerCashoutMultiplier(0);
           // Fila promovida no servidor → bet-accepted; não apagar stake se já estava enfileirada.
           if (queuedNextBetRef.current) {
             setQueuedNextBet(false);
@@ -210,6 +212,7 @@ export function useCrashGame() {
       serverCashedOutRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
+      setServerCashoutMultiplier(0);
       setLastError(null);
     });
 
@@ -225,6 +228,7 @@ export function useCrashGame() {
       serverCashedOutRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
+      setServerCashoutMultiplier(0);
       setLastError(null);
     });
 
@@ -238,6 +242,7 @@ export function useCrashGame() {
       serverCashedOutRef.current = false;
       setServerCashedOut(false);
       setServerPayout(0);
+      setServerCashoutMultiplier(0);
       setServerBetAmount(0);
       setLastError(null);
     });
@@ -248,6 +253,7 @@ export function useCrashGame() {
       serverCashedOutRef.current = true;
       setServerCashedOut(true);
       setServerPayout(data.payout);
+      setServerCashoutMultiplier(data.multiplier);
       setLastError(null);
     });
 
@@ -286,6 +292,7 @@ export function useCrashGame() {
           serverCashedOutRef.current = false;
           setServerCashedOut(false);
           setServerPayout(0);
+          setServerCashoutMultiplier(0);
         } else {
           return;
         }
@@ -336,6 +343,7 @@ export function useCrashGame() {
     serverCashedOutRef.current = false;
     setServerCashedOut(false);
     setServerPayout(0);
+    setServerCashoutMultiplier(0);
     if (state === 'COUNTDOWN') {
       setHasServerBet(true);
       setQueuedNextBet(false);
@@ -378,6 +386,7 @@ export function useCrashGame() {
     serverCashedOutRef.current = true;
     setServerCashedOut(true);
     if (estimated > 0) setServerPayout(estimated);
+    setServerCashoutMultiplier(multiplierRef.current);
     playCrashSound('cashout');
     emitCoinBurst({ direction: 'in', count: 10 });
     getSocket().emit('crash:cashout');
@@ -393,6 +402,7 @@ export function useCrashGame() {
     queuedNextBet,
     serverCashedOut,
     serverPayout,
+    serverCashoutMultiplier,
     serverBetAmount,
     lastError,
     fairnessCommit,
