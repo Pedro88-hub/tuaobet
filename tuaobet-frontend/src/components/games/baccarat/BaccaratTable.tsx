@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react';
-import tuaoLogo from '../../../assets/tuao-logo.png';
+import shoeDeck from '../../../assets/baccarat/shoe-deck.jpg';
 import { canAddChip, dealSequence, money, visibleTotal } from '../../../games/baccarat/betting';
 import type { AreaTotals, LivePlacement } from '../../../games/baccarat/live';
 import { SIDE_LABELS, type Outcome, type Side, type Status } from '../../../games/baccarat/types';
@@ -57,17 +57,7 @@ export function BaccaratTable({
           role="img"
           aria-label="Shoe de oito baralhos"
         >
-          <div className="bc-shoe-stack">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="bc-shoe-body">
-            <span className="bc-shoe-brand" aria-hidden="true">
-              <img src={tuaoLogo} alt="" draggable={false} />
-            </span>
-            <span className="bc-shoe-mouth" aria-hidden="true" />
-          </div>
+          <img src={shoeDeck} alt="" draggable={false} />
         </div>
         <div className="bc-table-brand" aria-hidden="true">
           <span>TUÃOBET ORIGINAL</span>
