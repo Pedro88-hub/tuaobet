@@ -10,7 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "test": "node --require ts-node/register/transpile-only --test src/services/sessionStatsMath.test.ts src/services/userProgress.test.ts"
+    "test": "node --require ts-node/register/transpile-only --test src/services/sessionStatsMath.test.ts src/services/userProgress.test.ts src/games/baccarat/baccaratMath.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
