@@ -141,25 +141,27 @@ export const BigWinsFeed: React.FC = () => {
 
   return (
     <section className="mb-6">
-      <div className="mb-4 flex items-center gap-2 px-0.5">
-        <Trophy className="text-tuao-cta" size={22} strokeWidth={2.5} />
+      <div className="mb-3 flex items-center gap-2 px-0.5">
+        <Trophy className="text-tuao-cta" size={16} strokeWidth={1.75} />
         <div>
-          <h2 className="text-xl font-black tracking-tight text-white md:text-2xl">Grandes Vitórias</h2>
-          <p className="text-xs text-tuao-text-secondary">Apostas de cassino em tempo real</p>
+          <h2 className="text-sm font-normal tracking-tight text-white">Grandes Vitórias</h2>
+          <p className="text-[11px] font-normal text-tuao-text-secondary">
+            Apostas de cassino em tempo real
+          </p>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-tuao-dark-700/90 bg-tuao-dark-900 shadow-panel">
+      <div className="overflow-hidden rounded-lg border border-tuao-dark-700/80 bg-tuao-dark-900">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-[11px] font-normal">
             <thead>
-              <tr className="border-b border-tuao-dark-700/80 text-[11px] font-bold uppercase tracking-wider text-tuao-text-secondary">
-                <th className="px-4 py-3 font-bold">Jogo</th>
-                <th className="px-4 py-3 font-bold">Usuário</th>
-                <th className="px-4 py-3 font-bold">Tempo</th>
-                <th className="px-4 py-3 font-bold">Aposta</th>
-                <th className="px-4 py-3 font-bold">Mult</th>
-                <th className="px-4 py-3 font-bold text-right">Valor ganho</th>
+              <tr className="border-b border-tuao-dark-700/80 uppercase tracking-wider text-tuao-text-secondary">
+                <th className="px-3 py-2 font-normal">Jogo</th>
+                <th className="px-3 py-2 font-normal">Usuário</th>
+                <th className="px-3 py-2 font-normal">Tempo</th>
+                <th className="px-3 py-2 font-normal">Aposta</th>
+                <th className="px-3 py-2 font-normal">Mult</th>
+                <th className="px-3 py-2 text-right font-normal">Valor ganho</th>
               </tr>
             </thead>
             <tbody>
@@ -168,16 +170,20 @@ export const BigWinsFeed: React.FC = () => {
                   key={w.id}
                   className="border-b border-tuao-dark-800/80 last:border-0 hover:bg-tuao-dark-800/40"
                 >
-                  <td className="px-4 py-3 font-semibold text-white">{gameLabel(w.game)}</td>
-                  <td className="px-4 py-3 text-tuao-text-secondary">{w.username}</td>
-                  <td className="px-4 py-3 tabular-nums text-tuao-text-secondary">
+                  <td className="px-3 py-2 font-normal text-tuao-text-secondary">
+                    {gameLabel(w.game)}
+                  </td>
+                  <td className="px-3 py-2 font-normal text-tuao-text-secondary">{w.username}</td>
+                  <td className="px-3 py-2 font-normal tabular-nums text-tuao-text-secondary">
                     {formatTime(w.createdAt)}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-white">R$ {formatMoney(w.amount)}</td>
-                  <td className="px-4 py-3 tabular-nums font-semibold text-tuao-cta">
+                  <td className="px-3 py-2 font-normal tabular-nums text-tuao-text-secondary">
+                    R$ {formatMoney(w.amount)}
+                  </td>
+                  <td className="px-3 py-2 font-normal tabular-nums text-tuao-text-secondary">
                     {formatMult(w.multiplier)}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums font-bold text-emerald-400">
+                  <td className="px-3 py-2 text-right font-normal tabular-nums text-tuao-text-secondary">
                     R$ {formatMoney(w.payout)}
                   </td>
                 </tr>

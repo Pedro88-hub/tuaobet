@@ -101,48 +101,30 @@ export function SessionStatsBar() {
 
   const items = [
     { label: 'Login anterior', value: formatPreviousLogin(stats?.previousLoginAt ?? null) },
-    {
-      label: 'Ganho',
-      value: stats ? formatBrl(stats.wonAmount) : '—',
-    },
-    {
-      label: 'Perdido',
-      value: stats ? formatBrl(stats.lostAmount) : '—',
-    },
-    {
-      label: 'Saldo',
-      value: balance != null ? formatBrl(balance) : '—',
-      emphasize: true,
-    },
-    { label: 'Sessão', value: sessionTime },
+    { label: 'Valor ganho', value: stats ? formatBrl(stats.wonAmount) : '—' },
+    { label: 'Valor perdido', value: stats ? formatBrl(stats.lostAmount) : '—' },
+    { label: 'Saldo da carteira', value: balance != null ? formatBrl(balance) : '—' },
+    { label: 'Tempo na sessão atual', value: sessionTime },
   ] as const;
 
   return (
-    <div className="border-t border-tuao-dark-800/40 px-4 py-3 lg:px-8">
-      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-tuao-text-secondary md:justify-between">
-        {items.map((item, i) => (
-          <div key={item.label} className="flex items-center gap-4">
-            {i > 0 && (
-              <span
-                className="hidden h-3 w-px bg-tuao-dark-700/80 md:block"
-                aria-hidden
-              />
-            )}
-            <p className="whitespace-nowrap">
-              <span className="text-tuao-text-secondary/70">{item.label}</span>
-              <span
-                className={`ml-1.5 tabular-nums ${
-                  'emphasize' in item && item.emphasize
-                    ? 'font-medium text-white'
-                    : 'text-tuao-text-secondary'
-                }`}
-              >
-                {item.value}
-              </span>
-            </p>
+    <div className="border-t border-tuao-dark-800/40 px-4 py-4 lg:px-8">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-center gap-2 text-[11px]">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-tuao-dark-900 px-3.5 py-1.5"
+          >
+            <span className="text-tuao-text-secondary">{item.label}</span>
+            <span className="font-bold tabular-nums text-white">{item.value}</span>
           </div>
         ))}
       </div>
+      <p className="mx-auto mt-3 max-w-3xl text-center text-[11px] leading-relaxed text-tuao-text-secondary">
+        Os dados fornecidos mostram sua atividade desde a última vez em que você fez
+        login. Se sua sessão permanecer aberta, os números continuarão sendo
+        atualizados. Os saldos de ganhos e perdas são atualizados a cada 2 minutos.
+      </p>
     </div>
   );
 }
