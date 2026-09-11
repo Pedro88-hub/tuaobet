@@ -10,11 +10,9 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  Spade,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { TuaoLogoMark } from '../brand/TuaoLogoMark';
-import { BACCARAT_IN_MAINTENANCE } from '../../lib/gameMaintenance';
 
 interface SidebarProps {
   isExpanded: boolean;
@@ -35,12 +33,6 @@ const games: SidebarGame[] = [
   { name: 'Mines', icon: Bomb, path: '/mines' },
   { name: 'Dice', icon: Dices, path: '/dice' },
   { name: 'Plinko', icon: LayoutGrid, path: '/plinko' },
-  {
-    name: 'Baccarat',
-    icon: Spade,
-    path: '/baccarat',
-    maintenance: BACCARAT_IN_MAINTENANCE,
-  },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isExpanded, isMobileOpen, closeMobile }) => {

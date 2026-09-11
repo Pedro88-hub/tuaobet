@@ -73,7 +73,6 @@ export const AdminBetsLogTab: React.FC<Props> = ({ onError }) => {
           <option value="mines">mines</option>
           <option value="dice">dice</option>
           <option value="plinko">plinko</option>
-          <option value="baccarat">baccarat</option>
         </select>
         <select
           value={result}

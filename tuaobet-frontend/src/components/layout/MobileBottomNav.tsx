@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, LayoutGrid, Menu, Search, Spade, Star, Tv } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-const CASINO_PATHS = ['/crash', '/double', '/mines', '/plinko', '/dice', '/baccarat', '/fairness'];
+const CASINO_PATHS = ['/crash', '/double', '/mines', '/plinko', '/dice', '/fairness'];
 
 interface MobileBottomNavProps {
   onOpenMenu: () => void;

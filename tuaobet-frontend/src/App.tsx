@@ -7,7 +7,6 @@ import { MinesGame } from './pages/MinesGame';
 import { DoubleGame } from './pages/DoubleGame';
 import { PlinkoGame } from './pages/PlinkoGame';
 import { DiceGame } from './pages/DiceGame';
-import { BaccaratGame } from './pages/BaccaratGame';
 import { TowerGame } from './pages/TowerGame';
 import { Fairness } from './pages/institutional/Fairness';
 import { InstitutionalStub } from './pages/institutional/InstitutionalStub';
@@ -28,7 +27,6 @@ function App() {
             <Route path="/plinko" element={<PlinkoGame />} />
             <Route path="/dice" element={<DiceGame />} />
             <Route path="/tower" element={<TowerGame />} />
-            <Route path="/baccarat" element={<BaccaratGame />} />
             <Route path="/fairness" element={<Fairness />} />
             <Route path="/termos" element={<InstitutionalStub title="Termos de Serviço" />} />
             <Route path="/privacidade" element={<InstitutionalStub title="Política de Privacidade" />} />

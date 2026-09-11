@@ -22,7 +22,7 @@ const FAKE_USERS = [
   'CassinoBR',
 ];
 
-const FAKE_GAMES = ['crash', 'double', 'mines', 'dice', 'plinko', 'baccarat'] as const;
+const FAKE_GAMES = ['crash', 'double', 'mines', 'dice', 'plinko'] as const;
 
 const formatMoney = (value: number) =>
   value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,7 +34,6 @@ const gameLabel = (game: string) => {
     mines: 'Mines',
     dice: 'Dice',
     plinko: 'Plinko',
-    baccarat: 'Baccarat',
     sport: 'Esportes',
   };
   return map[game] ?? game;

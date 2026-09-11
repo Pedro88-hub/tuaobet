@@ -129,7 +129,6 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
     location.pathname.startsWith('/mines') ||
     location.pathname.startsWith('/plinko') ||
     location.pathname.startsWith('/dice') ||
-    location.pathname.startsWith('/baccarat') ||
     location.pathname.startsWith('/fairness');
   const isSports = location.pathname.startsWith('/sports');
   const isSearchRoute = location.pathname === '/' && new URLSearchParams(location.search).has('q');

@@ -3,7 +3,6 @@ import { authMiddleware } from '../middlewares/authMiddleware';
 import { activeAccountMiddleware } from '../middlewares/activeAccountMiddleware';
 import { gamesRateLimiter } from '../middlewares/gameRateLimit';
 import {
-  baccaratPlay,
   diceRoll,
   minesCashout,
   minesReveal,
@@ -20,6 +19,5 @@ router.post('/mines/reveal', ...play, minesReveal);
 router.post('/mines/cashout', ...play, minesCashout);
 router.post('/dice/roll', ...play, diceRoll);
 router.post('/plinko/drop', ...play, plinkoDrop);
-router.post('/baccarat/play', ...play, baccaratPlay);
 
 export default router;

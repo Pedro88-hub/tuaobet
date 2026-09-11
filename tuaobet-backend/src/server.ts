@@ -11,8 +11,6 @@ import publicSiteRoutes from './routes/publicSiteRoutes';
 import { initCrashGame } from './games/crash/crashEngine';
 import { initDoubleGame } from './games/double/doubleEngine';
 import { initMinesLiveFeed } from './games/mines/minesLiveFeed';
-import { initBaccaratGame } from './games/baccarat/baccaratLiveEngine';
-import { isBaccaratInMaintenance } from './config/gameMaintenance';
 import { verifySocketToken, attachUserToSocket } from './socket/socketAuth';
 import { registerGameIo } from './socket/pushWalletBalance';
 import { registerSiteIo } from './socket/siteBroadcast';
@@ -83,11 +81,6 @@ console.log('Iniciando motores de jogo...');
 initCrashGame(io);
 initDoubleGame(io);
 initMinesLiveFeed(io);
-if (isBaccaratInMaintenance()) {
-  console.log('Baccarat em manutenção — motor não iniciado');
-} else {
-  initBaccaratGame(io);
-}
 
 const PORT = process.env.PORT || 3000;
 

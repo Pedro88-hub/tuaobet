@@ -2,7 +2,6 @@ import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { BACCARAT_IN_MAINTENANCE } from '../../lib/gameMaintenance';
 import { TuaoLogoMark } from '../brand/TuaoLogoMark';
 import crashArt from '../../assets/originals/crash.png';
 import doubleArt from '../../assets/originals/double.png';
@@ -10,7 +9,6 @@ import minesArt from '../../assets/originals/mines.png';
 import diceArt from '../../assets/originals/dice.png';
 import plinkoArt from '../../assets/originals/plinko.png';
 import towerArt from '../../assets/originals/tower.png';
-import baccaratArt from '../../assets/originals/baccarat.png';
 
 type GameItem = {
   name: string;
@@ -26,12 +24,6 @@ const games: GameItem[] = [
   { name: 'Dice', path: '/dice', image: diceArt },
   { name: 'Plinko', path: '/plinko', image: plinkoArt },
   { name: 'Tower', path: '/tower', image: towerArt, maintenance: true },
-  {
-    name: 'Baccarat',
-    path: '/baccarat',
-    image: baccaratArt,
-    maintenance: BACCARAT_IN_MAINTENANCE,
-  },
 ];
 
 const GAP_PX = 12;
