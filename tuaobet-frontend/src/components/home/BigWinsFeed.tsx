@@ -4,6 +4,25 @@ import { fetchPublicRecentWins, type PublicRecentWin } from '../../services/publ
 import { getSocket } from '../../services/socket';
 
 const MAX_ROWS = 20;
+const SEED_COUNT = 12;
+const FAKE_INTERVAL_MS = 2500;
+
+const FAKE_USERS = [
+  'CryptoKing',
+  'LuckyDice',
+  'Roller99',
+  'BetMaster',
+  'Alice_W',
+  'JohnDoe',
+  'Winner2026',
+  'HighRoller',
+  'Pedro88',
+  'NightOwl',
+  'SpinPro',
+  'CassinoBR',
+];
+
+const FAKE_GAMES = ['crash', 'double', 'mines', 'dice', 'plinko', 'baccarat'] as const;
 
 const formatMoney = (value: number) =>
   value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -37,21 +56,62 @@ const formatMult = (m: number | null) => {
   return `${m.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}X`;
 };
 
+/** Máscara no estilo do backend (ex.: Pedro88 → Pe***88). */
+const maskUsername = (username: string) => {
+  const name = (username || '').trim();
+  if (!name) return '***';
+  if (name.length <= 2) return `${name[0] ?? '*'}*`;
+  if (name.length <= 4) return `${name.slice(0, 1)}***${name.slice(-1)}`;
+  return `${name.slice(0, 2)}***${name.slice(-2)}`;
+};
+
+const randomId = () => `fake-${Math.random().toString(36).slice(2, 11)}`;
+
+const makeFakeWin = (createdAtMs?: number): PublicRecentWin => {
+  const user = FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)]!;
+  const game = FAKE_GAMES[Math.floor(Math.random() * FAKE_GAMES.length)]!;
+  const amount = Math.round((Math.random() * 495 + 5) * 100) / 100;
+  const multiplier = Math.round((Math.random() * 48.5 + 1.5) * 100) / 100;
+  const payout = Math.round(amount * multiplier * 100) / 100;
+  return {
+    id: randomId(),
+    game,
+    amount,
+    multiplier,
+    payout,
+    createdAt: new Date(createdAtMs ?? Date.now()).toISOString(),
+    username: maskUsername(user),
+  };
+};
+
+const seedFakeWins = (count: number): PublicRecentWin[] => {
+  const now = Date.now();
+  return Array.from({ length: count }, (_, i) => {
+    const ageMs = (i + 1) * (30_000 + Math.random() * 90_000);
+    return makeFakeWin(now - ageMs);
+  });
+};
+
+const mergeWins = (incoming: PublicRecentWin[], prev: PublicRecentWin[]): PublicRecentWin[] => {
+  const seen = new Set(prev.map((w) => w.id));
+  const fresh = incoming.filter((w) => w?.id && !seen.has(w.id));
+  if (fresh.length === 0) return prev;
+  return [...fresh, ...prev].slice(0, MAX_ROWS);
+};
+
 export const BigWinsFeed: React.FC = () => {
-  const [wins, setWins] = useState<PublicRecentWin[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [wins, setWins] = useState<PublicRecentWin[]>(() => seedFakeWins(SEED_COUNT));
 
   useEffect(() => {
     let cancelled = false;
     void fetchPublicRecentWins(MAX_ROWS)
       .then((rows) => {
-        if (!cancelled) setWins(rows);
+        if (!cancelled && rows.length > 0) {
+          setWins((prev) => mergeWins(rows, prev));
+        }
       })
       .catch(() => {
-        if (!cancelled) setWins([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        /* mantém seed fake */
       });
     return () => {
       cancelled = true;
@@ -62,15 +122,21 @@ export const BigWinsFeed: React.FC = () => {
     const socket = getSocket();
     const onBigWin = (payload: PublicRecentWin) => {
       if (!payload?.id) return;
-      setWins((prev) => {
-        if (prev.some((w) => w.id === payload.id)) return prev;
-        return [payload, ...prev].slice(0, MAX_ROWS);
-      });
+      setWins((prev) => mergeWins([payload], prev));
     };
     socket.on('site:big-win', onBigWin);
     return () => {
       socket.off('site:big-win', onBigWin);
     };
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (Math.random() > 0.4) return;
+      const next = makeFakeWin();
+      setWins((prev) => [next, ...prev].slice(0, MAX_ROWS));
+    }, FAKE_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -97,40 +163,25 @@ export const BigWinsFeed: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-tuao-text-secondary">
-                    Carregando vitórias…
+              {wins.map((w) => (
+                <tr
+                  key={w.id}
+                  className="border-b border-tuao-dark-800/80 last:border-0 hover:bg-tuao-dark-800/40"
+                >
+                  <td className="px-4 py-3 font-semibold text-white">{gameLabel(w.game)}</td>
+                  <td className="px-4 py-3 text-tuao-text-secondary">{w.username}</td>
+                  <td className="px-4 py-3 tabular-nums text-tuao-text-secondary">
+                    {formatTime(w.createdAt)}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-white">R$ {formatMoney(w.amount)}</td>
+                  <td className="px-4 py-3 tabular-nums font-semibold text-tuao-cta">
+                    {formatMult(w.multiplier)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums font-bold text-emerald-400">
+                    R$ {formatMoney(w.payout)}
                   </td>
                 </tr>
-              )}
-              {!loading && wins.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-tuao-text-secondary">
-                    Ainda não há grandes vitórias. Seja o primeiro!
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                wins.map((w) => (
-                  <tr
-                    key={w.id}
-                    className="border-b border-tuao-dark-800/80 last:border-0 hover:bg-tuao-dark-800/40"
-                  >
-                    <td className="px-4 py-3 font-semibold text-white">{gameLabel(w.game)}</td>
-                    <td className="px-4 py-3 text-tuao-text-secondary">{w.username}</td>
-                    <td className="px-4 py-3 tabular-nums text-tuao-text-secondary">
-                      {formatTime(w.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-white">R$ {formatMoney(w.amount)}</td>
-                    <td className="px-4 py-3 tabular-nums font-semibold text-tuao-cta">
-                      {formatMult(w.multiplier)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold text-emerald-400">
-                      R$ {formatMoney(w.payout)}
-                    </td>
-                  </tr>
-                ))}
+              ))}
             </tbody>
           </table>
         </div>

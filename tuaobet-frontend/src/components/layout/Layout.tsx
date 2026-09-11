@@ -3,6 +3,8 @@ import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { GlobalAnnouncementBar } from './GlobalAnnouncementBar';
+import { SiteFooter } from './SiteFooter';
+import { SessionStatsBar } from './SessionStatsBar';
 import { LoginModal } from '../auth/LoginModal';
 import { RegisterModal } from '../auth/RegisterModal';
 import { CoinBurstOverlay } from '../games/CoinBurstOverlay';
@@ -58,9 +60,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {children}
           </div>
 
-          <footer className="border-t border-tuao-dark-800/50 p-8 pb-28 text-center text-xs text-tuao-text-secondary lg:pb-8">
-            <p>&copy; 2024 TuãoBET. Todos os direitos reservados.</p>
-          </footer>
+          <SessionStatsBar />
+          <SiteFooter />
         </main>
       </div>
 
