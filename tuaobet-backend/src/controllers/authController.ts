@@ -70,7 +70,9 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    await recordLoginSession(user.id).catch(() => {});
+    await recordLoginSession(user.id).catch((err) => {
+      console.error('[auth] recordLoginSession failed', err);
+    });
 
     const token = generateToken(user.id);
 

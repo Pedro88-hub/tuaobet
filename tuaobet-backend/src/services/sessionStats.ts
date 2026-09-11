@@ -30,12 +30,26 @@ export async function getSessionStats(
       balance: true,
       previousLoginAt: true,
       currentSessionStartedAt: true,
+      lastLoginAt: true,
       createdAt: true,
     },
   });
   if (!user) return null;
 
-  const since = user.currentSessionStartedAt ?? user.createdAt;
+  // Contas com token antigo (pré-migração): inicia sessão agora em vez de
+  // agregar desde createdAt (que viraria “lifetime” disfarçado de sessão).
+  let since = user.currentSessionStartedAt;
+  if (!since) {
+    const now = new Date();
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        currentSessionStartedAt: now,
+        lastLoginAt: user.lastLoginAt ?? now,
+      },
+    });
+    since = now;
+  }
 
   const [wins, losses] = await Promise.all([
     prisma.bet.findMany({

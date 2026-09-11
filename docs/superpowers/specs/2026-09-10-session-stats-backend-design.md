@@ -1,7 +1,7 @@
 # Spec: Session Stats Backend (barra de sessão)
 
 **Data:** 2026-09-10  
-**Status:** draft  
+**Status:** implemented  
 **Escopo:** backend (`tuaobet-backend`) — schema, login, endpoint de stats  
 **Consumidor:** [`SessionStatsBar.tsx`](../../../tuaobet-frontend/src/components/layout/SessionStatsBar.tsx)
 

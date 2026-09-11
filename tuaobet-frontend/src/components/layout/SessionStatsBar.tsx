@@ -1,13 +1,36 @@
 import { useEffect, useState } from 'react';
+import { apiFetch } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-const SESSION_STARTED_KEY = 'tuaobet_session_started_at';
+const POLL_MS = 2 * 60 * 1000;
+
+type SessionStats = {
+  previousLoginAt: string | null;
+  wonAmount: number;
+  lostAmount: number;
+  balance: number;
+  sessionStartedAt: string | null;
+  updatedAt: string;
+};
 
 function formatBrl(value: number) {
   return `R$ ${value.toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatPreviousLogin(iso: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function formatSessionDuration(startedAt: number, now: number) {
@@ -19,45 +42,78 @@ function formatSessionDuration(startedAt: number, now: number) {
 }
 
 export function SessionStatsBar() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, setUserBalance } = useAuth();
+  const [stats, setStats] = useState<SessionStats | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      sessionStorage.removeItem(SESSION_STARTED_KEY);
-      setSessionStartedAt(null);
+      setStats(null);
       return;
     }
-    const existing = sessionStorage.getItem(SESSION_STARTED_KEY);
-    if (existing) {
-      const parsed = Number(existing);
-      if (Number.isFinite(parsed)) {
-        setSessionStartedAt(parsed);
-        return;
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const data = await apiFetch<SessionStats>('/api/auth/session-stats');
+        if (cancelled) return;
+        setStats(data);
+        if (Number.isFinite(data.balance)) {
+          setUserBalance(data.balance);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[SessionStatsBar] falha ao carregar /api/auth/session-stats', err);
+        }
       }
-    }
-    const started = Date.now();
-    sessionStorage.setItem(SESSION_STARTED_KEY, String(started));
-    setSessionStartedAt(started);
-  }, [isAuthenticated]);
+    };
+
+    void load();
+    const pollId = window.setInterval(() => void load(), POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+    };
+  }, [isAuthenticated, setUserBalance]);
 
   useEffect(() => {
-    if (!isAuthenticated || sessionStartedAt == null) return;
+    if (!isAuthenticated || !stats?.sessionStartedAt) return;
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [isAuthenticated, sessionStartedAt]);
+  }, [isAuthenticated, stats?.sessionStartedAt]);
 
   if (!isAuthenticated) return null;
 
-  const sessionTime =
-    sessionStartedAt != null ? formatSessionDuration(sessionStartedAt, now) : '—';
+  const sessionStartedMs = stats?.sessionStartedAt
+    ? Date.parse(stats.sessionStartedAt)
+    : NaN;
+  const sessionTime = Number.isFinite(sessionStartedMs)
+    ? formatSessionDuration(sessionStartedMs, now)
+    : '—';
+
+  const balance =
+    user && Number.isFinite(user.balance)
+      ? user.balance
+      : stats && Number.isFinite(stats.balance)
+        ? stats.balance
+        : null;
 
   const items = [
-    { label: 'Login anterior', value: '—' },
-    { label: 'Ganho', value: '—' },
-    { label: 'Perdido', value: '—' },
-    { label: 'Saldo', value: user ? formatBrl(user.balance) : '—', emphasize: true },
+    { label: 'Login anterior', value: formatPreviousLogin(stats?.previousLoginAt ?? null) },
+    {
+      label: 'Ganho',
+      value: stats ? formatBrl(stats.wonAmount) : '—',
+    },
+    {
+      label: 'Perdido',
+      value: stats ? formatBrl(stats.lostAmount) : '—',
+    },
+    {
+      label: 'Saldo',
+      value: balance != null ? formatBrl(balance) : '—',
+      emphasize: true,
+    },
     { label: 'Sessão', value: sessionTime },
   ] as const;
 
