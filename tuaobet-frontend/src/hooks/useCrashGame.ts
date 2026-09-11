@@ -14,7 +14,7 @@ export type CrashFairnessReveal = {
   serverSeedHash?: string;
 };
 
-type PendingAction = 'bet' | 'cancel' | 'cashout' | null;
+type PendingAction = 'bet' | 'cashout' | null;
 
 export function useCrashGame() {
   const [gameState, setGameState] = useState<GameState>('IDLE');
@@ -32,7 +32,6 @@ export function useCrashGame() {
     }[]
   >([]);
   const [hasServerBet, setHasServerBet] = useState(false);
-  const [queuedNextBet, setQueuedNextBet] = useState(false);
   const [serverCashedOut, setServerCashedOut] = useState(false);
   const [serverPayout, setServerPayout] = useState(0);
   const [serverCashoutMultiplier, setServerCashoutMultiplier] = useState(0);
@@ -44,15 +43,8 @@ export function useCrashGame() {
   const pendingActionRef = useRef<PendingAction>(null);
   const multiplierRef = useRef(multiplier);
   const betAmountRef = useRef(serverBetAmount);
-  const queuedNextBetRef = useRef(false);
-  const hasServerBetRef = useRef(false);
   const serverCashedOutRef = useRef(false);
   const cashoutInFlightRef = useRef(false);
-  const cancelSnapshotRef = useRef<{
-    hasServerBet: boolean;
-    queuedNextBet: boolean;
-    serverBetAmount: number;
-  } | null>(null);
 
   useEffect(() => {
     multiplierRef.current = multiplier;
@@ -61,14 +53,6 @@ export function useCrashGame() {
   useEffect(() => {
     betAmountRef.current = serverBetAmount;
   }, [serverBetAmount]);
-
-  useEffect(() => {
-    queuedNextBetRef.current = queuedNextBet;
-  }, [queuedNextBet]);
-
-  useEffect(() => {
-    hasServerBetRef.current = hasServerBet;
-  }, [hasServerBet]);
 
   useEffect(() => {
     serverCashedOutRef.current = serverCashedOut;
@@ -117,15 +101,6 @@ export function useCrashGame() {
           setServerCashedOut(false);
           setServerPayout(0);
           setServerCashoutMultiplier(0);
-          // Fila promovida no servidor → bet-accepted; não apagar stake se já estava enfileirada.
-          if (queuedNextBetRef.current) {
-            setQueuedNextBet(false);
-            queuedNextBetRef.current = false;
-            setHasServerBet(true);
-          } else {
-            // bet-accepted pode chegar antes/depois; sync cobre reconexão.
-            // Só limpa quem não tinha aposta na rodada anterior (explode já limpou).
-          }
         }
       }
     );
@@ -154,13 +129,10 @@ export function useCrashGame() {
         setGameState('CRASHED');
         setMultiplier(data.crashPoint);
         if (data.history) setHistory(data.history);
-        // Mantém fila da próxima rodada; limpa só a aposta da rodada que acabou.
         setHasServerBet(false);
         serverCashedOutRef.current = false;
         setServerCashedOut(false);
-        if (!queuedNextBetRef.current) {
-          setServerBetAmount(0);
-        }
+        setServerBetAmount(0);
         playCrashSound('crash');
         if (
           data.roundId != null &&
@@ -203,8 +175,6 @@ export function useCrashGame() {
     socket.on('crash:bet-accepted', (data?: { amount?: number }) => {
       pendingActionRef.current = null;
       cashoutInFlightRef.current = false;
-      setQueuedNextBet(false);
-      queuedNextBetRef.current = false;
       setHasServerBet(true);
       if (data?.amount != null && Number.isFinite(data.amount)) {
         setServerBetAmount(data.amount);
@@ -213,37 +183,6 @@ export function useCrashGame() {
       setServerCashedOut(false);
       setServerPayout(0);
       setServerCashoutMultiplier(0);
-      setLastError(null);
-    });
-
-    socket.on('crash:bet-queued', (data?: { amount?: number }) => {
-      pendingActionRef.current = null;
-      cashoutInFlightRef.current = false;
-      setQueuedNextBet(true);
-      queuedNextBetRef.current = true;
-      setHasServerBet(false);
-      if (data?.amount != null && Number.isFinite(data.amount)) {
-        setServerBetAmount(data.amount);
-      }
-      serverCashedOutRef.current = false;
-      setServerCashedOut(false);
-      setServerPayout(0);
-      setServerCashoutMultiplier(0);
-      setLastError(null);
-    });
-
-    socket.on('crash:bet-cancelled', () => {
-      pendingActionRef.current = null;
-      cashoutInFlightRef.current = false;
-      cancelSnapshotRef.current = null;
-      setHasServerBet(false);
-      setQueuedNextBet(false);
-      queuedNextBetRef.current = false;
-      serverCashedOutRef.current = false;
-      setServerCashedOut(false);
-      setServerPayout(0);
-      setServerCashoutMultiplier(0);
-      setServerBetAmount(0);
       setLastError(null);
     });
 
@@ -264,27 +203,11 @@ export function useCrashGame() {
 
       if (pending === 'bet') {
         if (code === 'ALREADY_BET') {
-          // Pode ser aposta atual ou fila — sync resolve; assume aposta atual.
           setHasServerBet(true);
-          setQueuedNextBet(false);
-          queuedNextBetRef.current = false;
         } else {
           setHasServerBet(false);
-          setQueuedNextBet(false);
-          queuedNextBetRef.current = false;
           setServerBetAmount(0);
         }
-      } else if (pending === 'cancel') {
-        if (code !== 'NO_BET') {
-          const snap = cancelSnapshotRef.current;
-          if (snap) {
-            setHasServerBet(snap.hasServerBet);
-            setQueuedNextBet(snap.queuedNextBet);
-            queuedNextBetRef.current = snap.queuedNextBet;
-            setServerBetAmount(snap.serverBetAmount);
-          }
-        }
-        cancelSnapshotRef.current = null;
       } else if (pending === 'cashout') {
         cashoutInFlightRef.current = false;
         // NO_BET no 2º emit = já sacou no servidor; não reabrir o botão Sacar.
@@ -305,7 +228,7 @@ export function useCrashGame() {
         INSUFFICIENT_BALANCE: 'Saldo insuficiente.',
         MIN_BET: 'Valor abaixo do mínimo.',
         MAX_BET: 'Valor acima do máximo.',
-        NO_BET: 'Nenhuma aposta para cancelar.',
+        NO_BET: 'Nenhuma aposta ativa.',
         NO_GAME: 'Rodada não está em andamento.',
         TOO_LATE: 'Muito tarde para sacar.',
         ACCOUNT_BLOCKED: 'Conta bloqueada.',
@@ -328,14 +251,12 @@ export function useCrashGame() {
       socket.off('crash:bets');
       socket.off('crash:new-bet');
       socket.off('crash:bet-accepted');
-      socket.off('crash:bet-queued');
-      socket.off('crash:bet-cancelled');
       socket.off('crash:cashout-ok');
       socket.off('crash:error');
     };
   }, []);
 
-  const joinGame = useCallback((amount: number, state: GameState) => {
+  const joinGame = useCallback((amount: number, _state: GameState) => {
     setLastError(null);
     pendingActionRef.current = 'bet';
     cashoutInFlightRef.current = false;
@@ -344,36 +265,10 @@ export function useCrashGame() {
     setServerCashedOut(false);
     setServerPayout(0);
     setServerCashoutMultiplier(0);
-    if (state === 'COUNTDOWN') {
-      setHasServerBet(true);
-      setQueuedNextBet(false);
-      queuedNextBetRef.current = false;
-    } else {
-      setHasServerBet(false);
-      setQueuedNextBet(true);
-      queuedNextBetRef.current = true;
-    }
+    setHasServerBet(true);
     playCrashSound('bet');
     emitCoinBurst({ direction: 'out' });
     getSocket().emit('crash:bet', { amount });
-  }, []);
-
-  const cancelBet = useCallback(() => {
-    setLastError(null);
-    pendingActionRef.current = 'cancel';
-    cancelSnapshotRef.current = {
-      hasServerBet: hasServerBetRef.current,
-      queuedNextBet: queuedNextBetRef.current,
-      serverBetAmount: betAmountRef.current,
-    };
-    setHasServerBet(false);
-    setQueuedNextBet(false);
-    queuedNextBetRef.current = false;
-    setServerBetAmount(0);
-    stopCrashSound('bet');
-    playCrashSound('cancel');
-    emitCoinBurst({ direction: 'in', count: 6 });
-    getSocket().emit('crash:cancel');
   }, []);
 
   const cashout = useCallback(() => {
@@ -399,7 +294,6 @@ export function useCrashGame() {
     history,
     players,
     hasServerBet,
-    queuedNextBet,
     serverCashedOut,
     serverPayout,
     serverCashoutMultiplier,
@@ -408,7 +302,6 @@ export function useCrashGame() {
     fairnessCommit,
     fairnessReveal,
     joinGame,
-    cancelBet,
     cashout,
   };
 }

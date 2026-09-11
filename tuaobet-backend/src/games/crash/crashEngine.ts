@@ -42,14 +42,6 @@ type CrashRoundBet = {
   cashedOut: boolean;
 };
 
-/** Aposta já debitada, à espera do próximo COUNTDOWN. */
-type PendingNextBet = {
-  userId: string;
-  username: string;
-  betId: string;
-  amount: number;
-};
-
 let gameState: GameState = 'IDLE';
 let multiplier = 1.0;
 let crashPoint = 0;
@@ -67,20 +59,11 @@ let crashFairnessPublic: { roundId: number; serverSeedHash: string } | null = nu
 let crashRoundSecret: { serverSeed: string; roundId: number } | null = null;
 
 const betsThisRound = new Map<string, CrashRoundBet>();
-const pendingNextBets = new Map<string, PendingNextBet>();
 const leaderboard = new Map<string, LeaderRow>();
 /** Apostas só para lista em tempo real (não entram na liquidação). */
 let roundSimulatedBets: SimulatedCrashBet[] = [];
 let cancelSimulatedBets: () => void = () => {};
 let cancelFakeCrashCashouts: () => void = () => {};
-
-function emitToUser(io: Server, userId: string, event: string, payload: unknown) {
-  for (const sock of io.sockets.sockets.values()) {
-    if (sock.data.userId === userId) {
-      sock.emit(event, payload);
-    }
-  }
-}
 
 function displayLeaderboardForClients(): LeaderRow[] {
   const real = Array.from(leaderboard.values());
@@ -139,42 +122,11 @@ function emitCrashSnapshot(socket: Socket) {
     socket.emit('crash:commit', crashFairnessPublic);
   }
   const userId = socket.data.userId as string | undefined;
-  if (userId) {
-    if (gameState === 'COUNTDOWN') {
-      const rec = betsThisRound.get(userId);
-      if (rec) {
-        socket.emit('crash:bet-accepted', { roundId: rec.roundId, amount: rec.amount });
-      }
+  if (userId && gameState === 'COUNTDOWN') {
+    const rec = betsThisRound.get(userId);
+    if (rec) {
+      socket.emit('crash:bet-accepted', { roundId: rec.roundId, amount: rec.amount });
     }
-    const queued = pendingNextBets.get(userId);
-    if (queued) {
-      socket.emit('crash:bet-queued', { amount: queued.amount });
-    }
-  }
-}
-
-function promotePendingNextBets(io: Server) {
-  if (pendingNextBets.size === 0) return;
-  const promoted = Array.from(pendingNextBets.values());
-  pendingNextBets.clear();
-  for (const pending of promoted) {
-    betsThisRound.set(pending.userId, {
-      userId: pending.userId,
-      username: pending.username,
-      betId: pending.betId,
-      amount: pending.amount,
-      roundId: bettingRoundId,
-      cashedOut: false,
-    });
-    leaderboard.set(pending.userId, {
-      id: pending.userId,
-      name: pending.username,
-      bet: pending.amount,
-    });
-    emitToUser(io, pending.userId, 'crash:bet-accepted', {
-      roundId: bettingRoundId,
-      amount: pending.amount,
-    });
   }
 }
 
@@ -191,7 +143,6 @@ export const initCrashGame = (io: Server) => {
     cancelSimulatedBets = () => {};
     cancelFakeCrashCashouts();
     cancelFakeCrashCashouts = () => {};
-    promotePendingNextBets(io);
     broadcastBets(io);
 
     const serverSeed = generateServerSeed();
@@ -316,7 +267,7 @@ export const initCrashGame = (io: Server) => {
           } catch (e) {
             console.error('[crash] falha ao persistir histórico:', e);
           }
-          setTimeout(() => gameLoop(), 6000);
+          setTimeout(() => gameLoop(), 3000);
         })();
       } else {
         io.emit('crash:tick', multiplier);
@@ -368,28 +319,12 @@ export const initCrashGame = (io: Server) => {
         return;
       }
 
-      const canBetNow =
-        gameState === 'COUNTDOWN' ||
-        gameState === 'RUNNING' ||
-        gameState === 'CRASHED' ||
-        gameState === 'IDLE';
-      if (!canBetNow) {
+      if (gameState !== 'COUNTDOWN') {
         socket.emit('crash:error', { code: 'CLOSED' });
         return;
       }
 
-      if (pendingNextBets.has(userId)) {
-        socket.emit('crash:error', { code: 'ALREADY_BET' });
-        return;
-      }
-
-      const existingRoundBet = betsThisRound.get(userId);
-      // Residual após saque (RUNNING) ou rodada rebentada (CRASHED) não bloqueia fila da próxima.
-      const blocksNewBet =
-        existingRoundBet != null &&
-        (gameState === 'COUNTDOWN' ||
-          (gameState === 'RUNNING' && !existingRoundBet.cashedOut));
-      if (blocksNewBet) {
+      if (betsThisRound.has(userId)) {
         socket.emit('crash:error', { code: 'ALREADY_BET' });
         return;
       }
@@ -429,12 +364,8 @@ export const initCrashGame = (io: Server) => {
           });
         });
 
-        // Decisão pós-débito: evita saltar rodada se CRASHED→COUNTDOWN durante o await.
-        const placeInCurrentRound = gameState === 'COUNTDOWN';
-        const placeInNextRound =
-          gameState === 'RUNNING' || gameState === 'CRASHED' || gameState === 'IDLE';
-
-        if (!placeInCurrentRound && !placeInNextRound) {
+        // Pós-débito: COUNTDOWN pode ter terminado durante o await.
+        if (gameState !== 'COUNTDOWN') {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
@@ -452,7 +383,7 @@ export const initCrashGame = (io: Server) => {
           return;
         }
 
-        if (pendingNextBets.has(userId)) {
+        if (betsThisRound.has(userId)) {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
@@ -470,119 +401,25 @@ export const initCrashGame = (io: Server) => {
           return;
         }
 
-        const existingAfterDebit = betsThisRound.get(userId);
-        if (
-          placeInCurrentRound &&
-          existingAfterDebit != null &&
-          !existingAfterDebit.cashedOut
-        ) {
-          const refund = Math.round(amount * 100) / 100;
-          try {
-            await prisma.$transaction(async (tx) => {
-              await refundStake(userId, refund, 'Crash — aposta duplicada', tx);
-              await tx.bet.update({
-                where: { id: betRow.id },
-                data: { result: 'cancelled', payout: 0, multiplier: null },
-              });
-            });
-            pushWalletBalance(userId);
-          } catch {
-            // Saldo reconciliado operacionalmente se o refund falhar
-          }
-          socket.emit('crash:error', { code: 'ALREADY_BET' });
-          return;
-        }
+        betsThisRound.set(userId, {
+          userId,
+          username: user.username,
+          betId: betRow.id,
+          amount,
+          roundId: bettingRoundId,
+          cashedOut: false,
+        });
 
-        if (placeInCurrentRound) {
-          betsThisRound.set(userId, {
-            userId,
-            username: user.username,
-            betId: betRow.id,
-            amount,
-            roundId: bettingRoundId,
-            cashedOut: false,
-          });
-
-          leaderboard.set(userId, {
-            id: userId,
-            name: user.username,
-            bet: amount,
-          });
-          socket.emit('crash:bet-accepted', { roundId: bettingRoundId, amount });
-          broadcastBets(io);
-        } else {
-          pendingNextBets.set(userId, {
-            userId,
-            username: user.username,
-            betId: betRow.id,
-            amount,
-          });
-          socket.emit('crash:bet-queued', { amount });
-        }
+        leaderboard.set(userId, {
+          id: userId,
+          name: user.username,
+          bet: amount,
+        });
+        socket.emit('crash:bet-accepted', { roundId: bettingRoundId, amount });
+        broadcastBets(io);
         pushWalletBalance(userId);
       } catch {
         socket.emit('crash:error', { code: 'INSUFFICIENT_BALANCE' });
-      }
-    });
-
-    socket.on('crash:cancel', async () => {
-      const userId = socket.data.userId as string | undefined;
-      if (!userId) {
-        socket.emit('crash:error', { code: 'AUTH' });
-        return;
-      }
-
-      let recAmount: number | null = null;
-      let betId: string | null = null;
-
-      if (gameState === 'COUNTDOWN') {
-        const rec = betsThisRound.get(userId);
-        if (!rec || rec.roundId !== bettingRoundId) {
-          socket.emit('crash:error', { code: 'NO_BET' });
-          return;
-        }
-        betsThisRound.delete(userId);
-        leaderboard.delete(userId);
-        recAmount = rec.amount;
-        betId = rec.betId;
-        broadcastBets(io);
-      } else {
-        const queued = pendingNextBets.get(userId);
-        if (!queued) {
-          socket.emit('crash:error', { code: 'NO_BET' });
-          return;
-        }
-        pendingNextBets.delete(userId);
-        recAmount = queued.amount;
-        betId = queued.betId;
-      }
-
-      const refund = Math.round(recAmount * 100) / 100;
-      socket.emit('crash:bet-cancelled', { refunded: refund });
-
-      const persistCancel = async () => {
-        await prisma.$transaction(async (tx) => {
-          await refundStake(userId, refund, 'Crash — cancelamento', tx);
-          await tx.bet.update({
-            where: { id: betId! },
-            data: {
-              result: 'cancelled',
-              payout: 0,
-              multiplier: null,
-            },
-          });
-        });
-        pushWalletBalance(userId);
-      };
-
-      try {
-        await persistCancel();
-      } catch {
-        try {
-          await persistCancel();
-        } catch {
-          // Cliente já viu o cancelamento; saldo será reconciliado no próximo sync/retry operacional
-        }
       }
     });
 

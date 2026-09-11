@@ -69,7 +69,6 @@ export function CrashGame() {
     history,
     players,
     hasServerBet,
-    queuedNextBet,
     serverCashedOut,
     serverPayout,
     serverCashoutMultiplier,
@@ -78,7 +77,6 @@ export function CrashGame() {
     fairnessCommit,
     fairnessReveal,
     joinGame,
-    cancelBet,
     cashout,
   } = useCrashGame();
 
@@ -133,25 +131,12 @@ export function CrashGame() {
 
   const displayMultiplier = useCrashDisplayMultiplier(multiplier, gameState);
 
-  const canBetNextRound =
-    !hasServerBet &&
-    !queuedNextBet &&
-    (gameState === 'RUNNING' || gameState === 'CRASHED' || gameState === 'IDLE');
-
   const handleBetAction = () => {
     if (!isAuthenticated) {
       openLoginModal();
       return;
     }
     const amount = betAmountValue;
-    if (queuedNextBet) {
-      cancelBet();
-      return;
-    }
-    if (gameState === 'COUNTDOWN' && hasServerBet) {
-      cancelBet();
-      return;
-    }
     if (gameState === 'COUNTDOWN' && !hasServerBet) {
       if (!isStakeValid(amount, balance)) return;
       joinGame(amount, gameState);
@@ -159,11 +144,6 @@ export function CrashGame() {
     }
     if (gameState === 'RUNNING' && hasServerBet && !serverCashedOut) {
       cashout();
-      return;
-    }
-    if (canBetNextRound) {
-      if (!isStakeValid(amount, balance)) return;
-      joinGame(amount, gameState);
     }
   };
 
@@ -195,13 +175,12 @@ export function CrashGame() {
   }, []);
 
   const amountDisabled =
-    (hasServerBet && !serverCashedOut && gameState !== 'CRASHED') || queuedNextBet;
+    hasServerBet && !serverCashedOut && gameState !== 'CRASHED';
 
-  const isPlacingBetCta =
-    !queuedNextBet &&
-    !(hasServerBet && gameState === 'COUNTDOWN') &&
-    !(gameState === 'RUNNING' && hasServerBet && !serverCashedOut) &&
-    ((gameState === 'COUNTDOWN' && !hasServerBet) || canBetNextRound);
+  const isPlacingBetCta = gameState === 'COUNTDOWN' && !hasServerBet;
+
+  const canCashout =
+    gameState === 'RUNNING' && hasServerBet && !serverCashedOut;
 
   return (
     <Layout>
@@ -315,52 +294,23 @@ export function CrashGame() {
                     data-crash-bet-anchor
                     className={cn(
                       'h-11 w-full text-sm font-black uppercase tracking-wider sm:h-12',
-                      gameState === 'RUNNING' && hasServerBet && !serverCashedOut
+                      canCashout
                         ? 'border border-emerald-500/35 bg-emerald-600 text-white hover:bg-emerald-500'
-                        : (hasServerBet && gameState === 'COUNTDOWN') || queuedNextBet
-                          ? 'border border-red-500/40 bg-red-500/90 text-white hover:bg-red-600'
-                          : 'border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover'
+                        : 'border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover'
                     )}
                     onClick={handleBetAction}
                     disabled={
-                      (hasServerBet && serverCashedOut) ||
-                      (gameState === 'IDLE' && !canBetNextRound && !queuedNextBet) ||
-                      (isPlacingBetCta && !amountValid)
+                      !canCashout &&
+                      (!isPlacingBetCta || !amountValid || (hasServerBet && serverCashedOut))
                     }
                   >
-                    {queuedNextBet ? (
-                      <span className="flex flex-col items-center leading-tight">
-                        <span>Cancelar próxima</span>
-                        <span className="text-[11px] font-bold tabular-nums opacity-90">
-                          R${' '}
-                          {(
-                            serverBetAmount > 0
-                              ? serverBetAmount
-                              : Number.isFinite(betAmountValue)
-                                ? betAmountValue
-                                : 0
-                          ).toFixed(2)}
-                        </span>
-                      </span>
-                    ) : gameState === 'COUNTDOWN' ? (
+                    {gameState === 'COUNTDOWN' ? (
                       hasServerBet ? (
-                        <span className="flex flex-col items-center leading-tight">
-                          <span>Cancelar</span>
-                          <span className="text-[11px] font-bold tabular-nums opacity-90">
-                            R${' '}
-                            {(
-                              serverBetAmount > 0
-                                ? serverBetAmount
-                                : Number.isFinite(betAmountValue)
-                                  ? betAmountValue
-                                  : 0
-                            ).toFixed(2)}
-                          </span>
-                        </span>
+                        'Esperando…'
                       ) : (
                         'Apostar'
                       )
-                    ) : gameState === 'RUNNING' && hasServerBet && !serverCashedOut ? (
+                    ) : canCashout ? (
                       <span className="flex flex-col items-center leading-tight">
                         <span>Sacar</span>
                         <span className="text-[11px] font-bold tabular-nums opacity-90">
@@ -374,8 +324,6 @@ export function CrashGame() {
                           ).toFixed(2)}
                         </span>
                       </span>
-                    ) : canBetNextRound ? (
-                      'Apostar (próxima)'
                     ) : gameState === 'RUNNING' || gameState === 'IDLE' ? (
                       'Esperando…'
                     ) : (
