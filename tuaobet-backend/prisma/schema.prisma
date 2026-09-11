@@ -36,6 +36,7 @@ model User {
   currentSessionStartedAt DateTime?
   
   bets             Bet[]
+  baccaratRounds  BaccaratRound[]
   transactions     Transaction[]
   adminAuditLogs   AdminAuditLog[] @relation("AdminAuditActor")
 
@@ -133,6 +134,19 @@ model Bet {
   createdAt DateTime @default(now())
 
   @@index([result, createdAt])
+  @@index([userId, createdAt])
+}
+
+model BaccaratRound {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String
+  bets      Json
+  outcome   Json
+  createdAt DateTime @default(now())
+
+  @@unique([userId, requestId])
   @@index([userId, createdAt])
 }
 

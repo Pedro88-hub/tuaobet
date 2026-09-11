@@ -188,7 +188,9 @@ export const listAllBets = async (req: Request, res: Response) => {
 
   const where: Prisma.BetWhereInput = {};
   if (game) where.game = game;
-  if (result === 'pending' || result === 'win' || result === 'loss') where.result = result;
+  if (result === 'pending' || result === 'win' || result === 'loss' || result === 'push') {
+    where.result = result;
+  }
   if (q) {
     where.OR = [
       { user: { username: { contains: q, mode: 'insensitive' } } },
