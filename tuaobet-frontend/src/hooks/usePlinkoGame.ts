@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, ApiError } from '../services/api';
 import { generatePlinkoMultipliers } from '../games/plinko/plinkoMath';
@@ -62,7 +62,11 @@ export const PLINKO_ROWS_MIN = 8;
 export const PLINKO_ROWS_MAX = 16;
 
 export function usePlinkoGame() {
-  const { setUserBalance } = useAuth();
+  const { setUserBalance, user } = useAuth();
+  const balanceRef = useRef(typeof user?.balance === 'number' ? user.balance : 0);
+  balanceRef.current = typeof user?.balance === 'number' ? user.balance : 0;
+  const dropInFlightRef = useRef(0);
+
   const [activeBalls, setActiveBalls] = useState<PlinkoBall[]>([]);
   const [history, setHistory] = useState<PlinkoHistoryEntry[]>(() => loadPlinkoHistory());
   const [rows, setRows] = useState(16);
@@ -73,7 +77,21 @@ export function usePlinkoGame() {
 
   const dropBall = useCallback(
     async (betAmount: number) => {
+      // Anti double-drop em cliques rápidos (permite várias bolas em voo sequenciais)
+      if (dropInFlightRef.current > 3) return;
       setError(null);
+
+      const prevBalance = balanceRef.current;
+      if (prevBalance < betAmount) {
+        setError('Saldo insuficiente');
+        return;
+      }
+
+      // Débito otimista no clique
+      setUserBalance(Math.round((prevBalance - betAmount) * 100) / 100);
+      balanceRef.current = Math.round((prevBalance - betAmount) * 100) / 100;
+      dropInFlightRef.current += 1;
+
       try {
         const data = await apiFetch<{
           path: number[];
@@ -86,7 +104,16 @@ export function usePlinkoGame() {
           body: JSON.stringify({ betAmount, rows, risk }),
         });
 
-        if (typeof data.balance === 'number') setUserBalance(data.balance);
+        // Com várias bolas em voo, o balance do servidor pode estar stale;
+        // credita só o payout local (stake já foi debitado no clique).
+        if (typeof data.balance === 'number' && dropInFlightRef.current === 1) {
+          setUserBalance(data.balance);
+          balanceRef.current = data.balance;
+        } else {
+          const next = Math.round((balanceRef.current + data.payout) * 100) / 100;
+          setUserBalance(next);
+          balanceRef.current = next;
+        }
 
         const newBall: PlinkoBall = {
           id: crypto.randomUUID(),
@@ -100,6 +127,10 @@ export function usePlinkoGame() {
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : 'Não foi possível apostar';
         setError(msg);
+        setUserBalance(prevBalance);
+        balanceRef.current = prevBalance;
+      } finally {
+        dropInFlightRef.current = Math.max(0, dropInFlightRef.current - 1);
       }
     },
     [rows, risk, setUserBalance]

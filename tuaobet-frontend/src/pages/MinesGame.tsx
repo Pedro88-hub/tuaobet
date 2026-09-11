@@ -48,6 +48,7 @@ export function MinesGame() {
     revealed,
     multiplier,
     history,
+    gameId,
     startGameWithBet,
     revealCell,
     cashout,
@@ -77,6 +78,7 @@ export function MinesGame() {
   const { isAutoPlaying, toggleAutoPlay, stopAuto } = useMinesAutoPlay({
     enabled: betMode === 'auto',
     gameState,
+    gameId,
     revealed,
     autoBetCount,
     autoTilesCount,

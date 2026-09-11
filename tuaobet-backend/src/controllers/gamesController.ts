@@ -28,6 +28,19 @@ function rollDiceFloat(): number {
   return randomInt(0, 1_000_000) / 10_000;
 }
 
+/** Persist com 1 retry silencioso — UI/ack já saiu (padrão Crash cashout). */
+async function persistWithRetry(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch {
+    try {
+      await fn();
+    } catch {
+      // Já confirmado em memória/HTTP; crédito será retentado operacionalmente se falhar
+    }
+  }
+}
+
 export async function minesStart(req: AuthRequest, res: Response) {
   const userId = req.userId!;
   const minesCount = Number(req.body?.minesCount);
@@ -55,9 +68,9 @@ export async function minesStart(req: AuthRequest, res: Response) {
       return res.status(500).json({ message: 'Falha ao gerar tabuleiro' });
     }
 
-    const betRow = await prisma.$transaction(async (tx) => {
+    const { betId, balance } = await prisma.$transaction(async (tx) => {
       await debitStake(userId, betAmount, 'Mines — aposta', tx);
-      return tx.bet.create({
+      const betRow = await tx.bet.create({
         data: {
           userId,
           game: 'mines',
@@ -67,6 +80,11 @@ export async function minesStart(req: AuthRequest, res: Response) {
           payout: null,
         },
       });
+      const u = await tx.user.findUnique({
+        where: { id: userId },
+        select: { balance: true },
+      });
+      return { betId: betRow.id, balance: u?.balance ?? 0 };
     });
 
     createSession(
@@ -77,7 +95,7 @@ export async function minesStart(req: AuthRequest, res: Response) {
         betAmount,
         minesCount,
         multiplier: 1,
-        betId: betRow.id,
+        betId,
         gameOver: false,
         serverSeed,
         serverSeedHash,
@@ -85,12 +103,7 @@ export async function minesStart(req: AuthRequest, res: Response) {
       gameId
     );
 
-    const u = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { balance: true },
-    });
-
-    const balance = u?.balance ?? 0;
+    // Resposta imediata — push de wallet em background
     pushWalletBalance(userId);
     return res.json({ gameId, balance, serverSeedHash });
   } catch {
@@ -131,28 +144,30 @@ export async function minesReveal(req: AuthRequest, res: Response) {
       serverSeedHash: session.serverSeedHash,
       gameId,
     };
-    await prisma.$transaction(async (tx) => {
-      await tx.bet.update({
-        where: { id: session.betId },
-        data: { result: 'loss', multiplier: 0, payout: 0 },
-      });
-      await applyLoss(tx, userId, session.betAmount);
-    });
+    const betId = session.betId;
+    const betAmount = session.betAmount;
     deleteSession(gameId);
-    const u = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { balance: true },
-    });
-    const balance = u?.balance ?? 0;
-    pushWalletBalance(userId);
-    return res.json({
+
+    // Resposta imediata — não esperar o Neon/Prisma
+    res.json({
       gameOver: true,
       hitMine: true,
       hitIndex: index,
       minePositions,
-      balance,
       ...fairness,
     });
+
+    void persistWithRetry(async () => {
+      await prisma.$transaction(async (tx) => {
+        await tx.bet.update({
+          where: { id: betId },
+          data: { result: 'loss', multiplier: 0, payout: 0 },
+        });
+        await applyLoss(tx, userId, betAmount);
+      });
+      pushWalletBalance(userId);
+    });
+    return;
   }
 
   const revealedSafe = session.revealed.filter((r, i) => r && !session.grid[i]).length;
@@ -178,56 +193,51 @@ export async function minesReveal(req: AuthRequest, res: Response) {
       serverSeedHash: session.serverSeedHash,
       gameId,
     };
-    await prisma.$transaction(async (tx) => {
-      await creditPayout(userId, payout, 'Mines — vitória (tabuleiro limpo)', tx);
-      await tx.bet.update({
-        where: { id: session.betId },
-        data: {
-          result: 'win',
-          multiplier: session.multiplier,
-          payout,
-        },
-      });
-      await applyWin(tx, userId, session.betAmount, payout);
-    });
+    const betId = session.betId;
+    const betAmount = session.betAmount;
     session.gameOver = true;
     deleteSession(gameId);
-    const u = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { balance: true },
-    });
-    const balance = u?.balance ?? 0;
-    pushWalletBalance(userId);
-    void publishBigWinForUser({
-      betId: session.betId,
-      userId,
-      game: 'mines',
-      amount: session.betAmount,
-      multiplier: finalMult,
-      payout,
-    });
-    return res.json({
+
+    // Resposta imediata — não esperar o Neon/Prisma
+    res.json({
       gameOver: true,
       won: true,
       multiplier: finalMult,
       payout,
-      balance,
       minePositions,
       ...fairness,
     });
+
+    void persistWithRetry(async () => {
+      await prisma.$transaction(async (tx) => {
+        await creditPayout(userId, payout, 'Mines — vitória (tabuleiro limpo)', tx);
+        await tx.bet.update({
+          where: { id: betId },
+          data: {
+            result: 'win',
+            multiplier: finalMult,
+            payout,
+          },
+        });
+        await applyWin(tx, userId, betAmount, payout);
+      });
+      pushWalletBalance(userId);
+      void publishBigWinForUser({
+        betId,
+        userId,
+        game: 'mines',
+        amount: betAmount,
+        multiplier: finalMult,
+        payout,
+      });
+    });
+    return;
   }
 
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { balance: true },
-  });
-
-  const balance = u?.balance ?? 0;
-  pushWalletBalance(userId);
+  // Casa segura: só memória — sem DB
   return res.json({
     safe: true,
     multiplier: session.multiplier,
-    balance,
   });
 }
 
@@ -263,44 +273,42 @@ export async function minesCashout(req: AuthRequest, res: Response) {
     gameId,
   };
 
-  await prisma.$transaction(async (tx) => {
-    await creditPayout(userId, payout, `Mines — cashout ${session.multiplier.toFixed(2)}x`, tx);
-    await tx.bet.update({
-      where: { id: session.betId },
-      data: {
-        result: 'win',
-        multiplier: session.multiplier,
-        payout,
-      },
-    });
-    await applyWin(tx, userId, session.betAmount, payout);
-  });
-
   const cashoutMult = session.multiplier;
   const cashoutAmount = session.betAmount;
   const cashoutBetId = session.betId;
   session.gameOver = true;
   deleteSession(gameId);
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { balance: true },
-  });
-  const balance = u?.balance ?? 0;
-  pushWalletBalance(userId);
-  void publishBigWinForUser({
-    betId: cashoutBetId,
-    userId,
-    game: 'mines',
-    amount: cashoutAmount,
-    multiplier: cashoutMult,
-    payout,
-  });
-  return res.json({
-    balance,
+
+  // Resposta imediata — não esperar o Neon/Prisma
+  res.json({
     multiplier: cashoutMult,
     payout,
     minePositions,
     ...fairness,
+  });
+
+  void persistWithRetry(async () => {
+    await prisma.$transaction(async (tx) => {
+      await creditPayout(userId, payout, `Mines — cashout ${cashoutMult.toFixed(2)}x`, tx);
+      await tx.bet.update({
+        where: { id: cashoutBetId },
+        data: {
+          result: 'win',
+          multiplier: cashoutMult,
+          payout,
+        },
+      });
+      await applyWin(tx, userId, cashoutAmount, payout);
+    });
+    pushWalletBalance(userId);
+    void publishBigWinForUser({
+      betId: cashoutBetId,
+      userId,
+      game: 'mines',
+      amount: cashoutAmount,
+      multiplier: cashoutMult,
+      payout,
+    });
   });
 }
 
@@ -320,56 +328,64 @@ export async function diceRoll(req: AuthRequest, res: Response) {
 
   const multiplier = 99 / rollUnder;
   const potentialWin = Math.round(betAmount * multiplier * 100) / 100;
+  const roll = rollDiceFloat();
+  const won = roll <= rollUnder;
+  const payout = won ? potentialWin : 0;
 
   try {
-    const { roll, won, payout, betId } = await prisma.$transaction(async (tx) => {
+    // Débito síncrono (obrigatório); credit/bet/progress em background
+    const balanceAfterDebit = await prisma.$transaction(async (tx) => {
       await debitStake(userId, betAmount, 'Dice — aposta', tx);
-      const roll = rollDiceFloat();
-      const won = roll <= rollUnder;
-      const payout = won ? potentialWin : 0;
-      if (won) {
-        await creditPayout(userId, payout, `Dice — vitória (roll ≤ ${rollUnder})`, tx);
-        await applyWin(tx, userId, betAmount, payout);
-      } else {
-        await applyLoss(tx, userId, betAmount);
-      }
-      const betRow = await tx.bet.create({
-        data: {
-          userId,
-          game: 'dice',
-          amount: betAmount,
-          result: won ? 'win' : 'loss',
-          multiplier: won ? multiplier : null,
-          payout: won ? payout : 0,
-        },
+      const u = await tx.user.findUnique({
+        where: { id: userId },
+        select: { balance: true },
       });
-      return { roll, won, payout, betId: betRow.id };
+      return u?.balance ?? 0;
     });
 
-    const u = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { balance: true },
-    });
+    const balance =
+      Math.round((balanceAfterDebit + (won ? payout : 0)) * 100) / 100;
 
-    const balance = u?.balance ?? 0;
-    pushWalletBalance(userId);
-    if (won) {
-      void publishBigWinForUser({
-        betId,
-        userId,
-        game: 'dice',
-        amount: betAmount,
-        multiplier,
-        payout,
-      });
-    }
-    return res.json({
+    // Resposta imediata — não esperar credit/bet no Neon
+    res.json({
       roll,
       rollUnder,
       won,
       multiplier,
       payout,
       balance,
+    });
+
+    void persistWithRetry(async () => {
+      const betRow = await prisma.$transaction(async (tx) => {
+        if (won) {
+          await creditPayout(userId, payout, `Dice — vitória (roll ≤ ${rollUnder})`, tx);
+          await applyWin(tx, userId, betAmount, payout);
+        } else {
+          await applyLoss(tx, userId, betAmount);
+        }
+        return tx.bet.create({
+          data: {
+            userId,
+            game: 'dice',
+            amount: betAmount,
+            result: won ? 'win' : 'loss',
+            multiplier: won ? multiplier : null,
+            payout: won ? payout : 0,
+          },
+        });
+      });
+      pushWalletBalance(userId);
+      if (won) {
+        void publishBigWinForUser({
+          betId: betRow.id,
+          userId,
+          game: 'dice',
+          amount: betAmount,
+          multiplier,
+          payout,
+        });
+      }
     });
   } catch {
     return res.status(400).json({ code: 'INSUFFICIENT_BALANCE' });
@@ -402,52 +418,60 @@ export async function plinkoDrop(req: AuthRequest, res: Response) {
   const finalSlot = path.reduce((a, b) => a + b, 0);
   const slotMultiplier = multipliers[finalSlot] ?? 0;
   const payout = Math.round(betAmount * slotMultiplier * 100) / 100;
+  const isWin = payout >= betAmount;
 
   try {
-    const betRow = await prisma.$transaction(async (tx) => {
+    // Débito síncrono; path já calculado — responde antes do credit/bet
+    const balanceAfterDebit = await prisma.$transaction(async (tx) => {
       await debitStake(userId, betAmount, 'Plinko — aposta', tx);
-      await creditPayout(userId, payout, `Plinko — resultado ${slotMultiplier}x`, tx);
-      const isWin = payout >= betAmount;
-      if (isWin) {
-        await applyWin(tx, userId, betAmount, payout);
-      } else {
-        await applyLoss(tx, userId, betAmount);
-      }
-      return tx.bet.create({
-        data: {
-          userId,
-          game: 'plinko',
-          amount: betAmount,
-          result: isWin ? 'win' : 'loss',
-          multiplier: slotMultiplier,
-          payout,
-        },
+      const u = await tx.user.findUnique({
+        where: { id: userId },
+        select: { balance: true },
       });
+      return u?.balance ?? 0;
     });
 
-    const u = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { balance: true },
-    });
+    const balance = Math.round((balanceAfterDebit + payout) * 100) / 100;
 
-    const balance = u?.balance ?? 0;
-    pushWalletBalance(userId);
-    if (betRow.result === 'win') {
-      void publishBigWinForUser({
-        betId: betRow.id,
-        userId,
-        game: 'plinko',
-        amount: betAmount,
-        multiplier: slotMultiplier,
-        payout,
-      });
-    }
-    return res.json({
+    // Resposta imediata — não esperar credit/bet no Neon
+    res.json({
       path,
       finalSlot,
       multiplier: slotMultiplier,
       payout,
       balance,
+    });
+
+    void persistWithRetry(async () => {
+      const betRow = await prisma.$transaction(async (tx) => {
+        await creditPayout(userId, payout, `Plinko — resultado ${slotMultiplier}x`, tx);
+        if (isWin) {
+          await applyWin(tx, userId, betAmount, payout);
+        } else {
+          await applyLoss(tx, userId, betAmount);
+        }
+        return tx.bet.create({
+          data: {
+            userId,
+            game: 'plinko',
+            amount: betAmount,
+            result: isWin ? 'win' : 'loss',
+            multiplier: slotMultiplier,
+            payout,
+          },
+        });
+      });
+      pushWalletBalance(userId);
+      if (betRow.result === 'win') {
+        void publishBigWinForUser({
+          betId: betRow.id,
+          userId,
+          game: 'plinko',
+          amount: betAmount,
+          multiplier: slotMultiplier,
+          payout,
+        });
+      }
     });
   } catch {
     return res.status(400).json({ code: 'INSUFFICIENT_BALANCE' });

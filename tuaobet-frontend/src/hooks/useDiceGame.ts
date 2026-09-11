@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, ApiError } from '../services/api';
 import { isStakeValid, MIN_BET } from '../lib/betLimits';
@@ -29,13 +29,16 @@ const FAKE_USERS = [
 export function useDiceGame() {
   const { setUserBalance, user } = useAuth();
   const balance = typeof user?.balance === 'number' ? user.balance : 0;
+  const balanceRef = useRef(balance);
+  balanceRef.current = balance;
+
   const [betAmount, setBetAmount] = useState<string>('');
   const [rollUnder, setRollUnder] = useState<number>(50);
   const [isRolling, setIsRolling] = useState(false);
   const [lastResult, setLastResult] = useState<number | null>(null);
   const [win, setWin] = useState<boolean | null>(null);
   const [liveBets, setLiveBets] = useState<DiceBet[]>([]);
-  const [instantBet, setInstantBet] = useState(false);
+  const [instantBet, setInstantBet] = useState(true);
   const [betMode, setBetMode] = useState<'manual' | 'auto'>('manual');
   const [error, setError] = useState<string | null>(null);
 
@@ -74,7 +77,7 @@ export function useDiceGame() {
     if (isRolling) return;
     setError(null);
     const amount = parseFloat(betAmount.trim() || '');
-    if (!isStakeValid(amount, balance)) {
+    if (!isStakeValid(amount, balanceRef.current)) {
       setError(
         !Number.isFinite(amount) || amount <= 0
           ? 'Indique um valor de aposta válido'
@@ -84,10 +87,11 @@ export function useDiceGame() {
       );
       return;
     }
+
+    const prevBalance = balanceRef.current;
     setIsRolling(true);
-    if (!instantBet) {
-      await new Promise((r) => setTimeout(r, 400));
-    }
+    // Débito otimista no clique — sem delay artificial
+    setUserBalance(Math.round((prevBalance - amount) * 100) / 100);
 
     try {
       const data = await apiFetch<{
@@ -102,7 +106,11 @@ export function useDiceGame() {
         body: JSON.stringify({ betAmount: amount, rollUnder }),
       });
 
-      if (typeof data.balance === 'number') setUserBalance(data.balance);
+      if (typeof data.balance === 'number') {
+        setUserBalance(data.balance);
+      } else if (data.won && data.payout > 0) {
+        setUserBalance(Math.round((prevBalance - amount + data.payout) * 100) / 100);
+      }
 
       setLastResult(data.roll);
       setWin(data.won);
@@ -122,10 +130,11 @@ export function useDiceGame() {
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'Erro ao jogar';
       setError(msg);
+      setUserBalance(prevBalance);
     } finally {
       setIsRolling(false);
     }
-  }, [betAmount, rollUnder, instantBet, isRolling, setUserBalance, balance]);
+  }, [betAmount, rollUnder, isRolling, setUserBalance]);
 
   return {
     betAmount,

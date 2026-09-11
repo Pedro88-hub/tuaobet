@@ -4,6 +4,7 @@ import type { GameState } from './useMinesGame';
 type UseMinesAutoPlayArgs = {
   enabled: boolean;
   gameState: GameState;
+  gameId: string | null;
   revealed: boolean[];
   autoBetCount: string;
   autoTilesCount: string;
@@ -19,6 +20,7 @@ type UseMinesAutoPlayArgs = {
 export function useMinesAutoPlay({
   enabled,
   gameState,
+  gameId,
   revealed,
   autoBetCount,
   autoTilesCount,
@@ -99,9 +101,9 @@ export function useMinesAutoPlay({
     return () => clearTimeout(timeout);
   }, [gameState, isAutoPlaying, autoBetCount, roundsPlayed, stopAuto]);
 
-  // Revelar tiles / cashout durante PLAYING
+  // Revelar tiles / cashout durante PLAYING (espera gameId do start)
   useEffect(() => {
-    if (!isAutoPlaying || gameState !== 'PLAYING') return;
+    if (!isAutoPlaying || gameState !== 'PLAYING' || !gameId) return;
 
     const revealedCount = revealed.filter((r) => r).length;
     const targetTiles = parseInt(autoTilesCount.trim(), 10);
@@ -129,7 +131,7 @@ export function useMinesAutoPlay({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [gameState, isAutoPlaying, revealed, autoTilesCount]);
+  }, [gameState, gameId, isAutoPlaying, revealed, autoTilesCount]);
 
   return {
     isAutoPlaying,
