@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { totalCents, addChip, canAddChip, parseChipCents, undoPlacement, clearPlacements, canDeal, betsFromPlacements, dealSequence, visibleTotal, revealedHistory } from '../.cache/baccarat/betting.js';
 import { PendingRoundClient } from '../.cache/baccarat/pending.js';
 import * as pendingApi from '../.cache/baccarat/pending.js';
+import { buildBeadPlate, buildBigRoad, countWinners, chronologicalWinners } from '../.cache/baccarat/roads.js';
 
 const zero = { player: 0, banker: 0, tie: 0 };
 const bets = { player: 50, banker: 0, tie: 0 };
@@ -165,19 +166,35 @@ test('live totals, chip stacks and phase lock', async () => {
   assert.deepEqual(stacked.visible.map((chip) => chip.cents), [1000, 100]);
 });
 
-test('cards and shoe use the official TuaoBet visual identity', async () => {
+test('casino table layout keeps shoe, casino odds labels and roadmap shells', async () => {
   const card = await readFile(new URL('../src/components/games/baccarat/BaccaratCard.tsx', import.meta.url), 'utf8');
   const table = await readFile(new URL('../src/components/games/baccarat/BaccaratTable.tsx', import.meta.url), 'utf8');
+  const hud = await readFile(new URL('../src/components/games/baccarat/BaccaratPhaseHud.tsx', import.meta.url), 'utf8');
+  const panel = await readFile(new URL('../src/components/games/baccarat/BaccaratBetPanel.tsx', import.meta.url), 'utf8');
+  const roads = await readFile(new URL('../src/components/games/baccarat/BaccaratRoads.tsx', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../src/components/games/baccarat/baccarat.css', import.meta.url), 'utf8');
+  const page = await readFile(new URL('../src/pages/BaccaratGame.tsx', import.meta.url), 'utf8');
 
-  assert.match(card, /import tuaoLogo from ['"]\.\.\/\.\.\/\.\.\/assets\/tuao-logo\.png['"]/);
-  assert.match(card, /className="bc-card-back-logo"/);
-  assert.match(card, /src=\{tuaoLogo\}/);
   assert.match(table, /role="img"\s+aria-label="Shoe de oito baralhos"/);
-  assert.match(table, /className="bc-shoe-brand"/);
-  assert.match(table, /className="bc-shoe-brand"[\s\S]*?<img src=\{tuaoLogo\}/);
-  assert.match(table, /className="bc-shoe-mouth"/);
-  assert.match(styles, /\.bc-table-top>span:last-child\s*\{[^}]*padding-right:76px/s);
+  assert.match(table, /player: '1:1', tie: '8:1', banker: '0,95:1'/);
+  assert.match(table, /BaccaratPhaseHud/);
+  assert.match(table, /chipTray/);
+  assert.match(table, /walletBar/);
+  assert.match(hud, /Apostas abertas/);
+  assert.match(hud, /Apostas encerradas/);
+  assert.match(hud, /bc-phase-ring/);
+  assert.match(hud, /bc-phase-status/);
+  assert.match(panel, /Desfazer/);
+  assert.match(panel, /Reapostar/);
+  assert.match(panel, /Aposta total/);
+  assert.match(roads, /bc-bead/);
+  assert.match(roads, /bc-big-road/);
+  assert.match(page, /BaccaratChipTray/);
+  assert.match(page, /BaccaratRoads/);
+  assert.match(styles, /\.bc-phase-hud/);
+  assert.match(styles, /\.bc-tray-row/);
+  assert.match(styles, /\.bc-roads/);
+  assert.match(styles, /\.bc-area-pct/);
   assert.match(styles, /@media\(max-width:380px\)\s*\{[\s\S]*?\.bc-card-slot\s*\{[^}]*width:36px/s);
   assert.match(card, /revealed \? 'is-revealed' : ''/);
   assert.match(styles, /\.bc-card\.is-revealed .bc-card-turn\s*\{[^}]*transform:rotateY\(180deg\)/s);
@@ -185,4 +202,22 @@ test('cards and shoe use the official TuaoBet visual identity', async () => {
     styles,
     /@media\(prefers-reduced-motion:reduce\)\s*\{[\s\S]*?animation:none!important;[\s\S]*?transition:none!important/s,
   );
+});
+
+test('bead plate and big road derive from newest-first history', () => {
+  const history = [
+    { roundId: 3, winner: 'player', playerTotal: 7, bankerTotal: 5, createdAt: '2026-09-11T12:03:00.000Z' },
+    { roundId: 2, winner: 'player', playerTotal: 8, bankerTotal: 2, createdAt: '2026-09-11T12:02:00.000Z' },
+    { roundId: 1, winner: 'banker', playerTotal: 1, bankerTotal: 9, createdAt: '2026-09-11T12:01:00.000Z' },
+  ];
+  assert.deepEqual(chronologicalWinners(history), ['banker', 'player', 'player']);
+  assert.deepEqual(countWinners(history), { player: 2, banker: 1, tie: 0 });
+  const bead = buildBeadPlate(history);
+  assert.equal(bead[0][0].winner, 'banker');
+  assert.equal(bead[0][1].winner, 'player');
+  assert.equal(bead[0][2].winner, 'player');
+  const big = buildBigRoad(history);
+  assert.equal(big[0][0].winner, 'banker');
+  assert.equal(big[1][0].winner, 'player');
+  assert.equal(big[1][1].winner, 'player');
 });

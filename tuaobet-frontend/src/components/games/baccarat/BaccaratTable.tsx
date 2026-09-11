@@ -1,10 +1,11 @@
-import { useRef, type MutableRefObject } from 'react';
+import { useRef, type MutableRefObject, type ReactNode } from 'react';
 import shoeDeck from '../../../assets/baccarat/shoe-deck.png';
 import { canAddChip, dealSequence, money, visibleTotal } from '../../../games/baccarat/betting';
 import type { AreaTotals, LivePlacement } from '../../../games/baccarat/live';
 import { SIDE_LABELS, type Outcome, type Side, type Status } from '../../../games/baccarat/types';
 import { BaccaratCard } from './BaccaratCard';
 import { BaccaratChipStack } from './BaccaratChipStack';
+import { BaccaratPhaseHud } from './BaccaratPhaseHud';
 
 type Props = {
   outcome: Outcome | null;
@@ -21,9 +22,17 @@ type Props = {
   countdown: number;
   place: (side: Side) => void;
   areaRefs: MutableRefObject<Partial<Record<Side, HTMLButtonElement | null>>>;
+  chipTray?: ReactNode;
+  walletBar?: ReactNode;
 };
 
-const ODDS: Record<Side, string> = { player: '2×', tie: '9×', banker: '1,95×' };
+/** Casino-style net odds labels (payouts unchanged: 2× / 9× / 1,95×). */
+const ODDS: Record<Side, string> = { player: '1:1', tie: '8:1', banker: '0,95:1' };
+
+function volumeShare(amount: number, tableTotal: number): number {
+  if (tableTotal <= 0) return 0;
+  return Math.round((amount / tableTotal) * 100);
+}
 
 export function BaccaratTable({
   outcome,
@@ -40,11 +49,15 @@ export function BaccaratTable({
   countdown,
   place,
   areaRefs,
+  chipTray,
+  walletBar,
 }: Props) {
   const shoeRef = useRef<HTMLDivElement>(null);
   const sequence = outcome ? dealSequence(outcome) : [];
   const complete = status === 'result';
   const available = editable && authenticated;
+  const tableVolume =
+    totals.player.amount + totals.banker.amount + totals.tie.amount;
 
   return (
     <section className="bc-table" aria-label="Mesa de baccarat">
@@ -107,37 +120,13 @@ export function BaccaratTable({
             );
           })}
         </div>
-        <div className={`bc-result ${complete ? 'is-complete' : ''}`} aria-live="polite" aria-atomic="true">
-          {complete && outcome ? (
-            <>
-              <strong>{outcome.winner === 'tie' ? 'Empate' : `${SIDE_LABELS[outcome.winner]} vence`}</strong>
-              <span>
-                {bets.player + bets.banker + bets.tie > 0
-                  ? `Sua aposta ${money(bets.player + bets.banker + bets.tie)}`
-                  : 'Rodada encerrada'}
-              </span>
-            </>
-          ) : (
-            <>
-              <strong>
-                {status === 'dealing'
-                  ? 'Distribuindo as cartas…'
-                  : countdown > 0
-                    ? `Apostas abertas · ${countdown.toFixed(2)}s`
-                    : 'A mesa é sua.'}
-              </strong>
-              <span>
-                {status === 'betting'
-                  ? 'Escolha uma ficha e clique na área da mesa.'
-                  : 'Aguarde a conclusão desta rodada.'}
-              </span>
-            </>
-          )}
-        </div>
+        <BaccaratPhaseHud status={status} countdown={countdown} outcome={outcome} />
+        {chipTray}
         <div className="bc-bet-areas">
           {(['player', 'tie', 'banker'] as const).map((side) => {
             const mine = placements.filter((item) => item.side === side);
             const table = totals[side];
+            const percent = volumeShare(table.amount, tableVolume);
             return (
               <button
                 type="button"
@@ -151,11 +140,15 @@ export function BaccaratTable({
                 aria-label={`Adicionar ${money(chip)} em ${SIDE_LABELS[side]}. Mesa ${money(Math.round(table.amount * 100))}. Apostado ${money(bets[side])}`}
               >
                 <span className="bc-area-label">
-                  {SIDE_LABELS[side]} <small>{ODDS[side]}</small>
+                  {SIDE_LABELS[side]}
+                  <small>{ODDS[side]}</small>
                 </span>
-                <span className="bc-area-total">
-                  {money(Math.round(table.amount * 100))}
-                  <small>{table.count}</small>
+                <span className="bc-area-meta">
+                  <span className="bc-area-pct">{percent}%</span>
+                  <span className="bc-area-total">
+                    {money(Math.round(table.amount * 100))}
+                    <small>{table.count}</small>
+                  </span>
                 </span>
                 <span className="bc-area-stake">
                   {mine.length > 0 ? (
@@ -170,6 +163,7 @@ export function BaccaratTable({
             );
           })}
         </div>
+        {walletBar}
       </div>
     </section>
   );

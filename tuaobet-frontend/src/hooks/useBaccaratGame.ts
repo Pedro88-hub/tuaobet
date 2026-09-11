@@ -19,7 +19,7 @@ import {
   type Phase,
   type TotalsPayload,
 } from '../games/baccarat/live';
-import type { Outcome, Side, Status } from '../games/baccarat/types';
+import type { Bets, Outcome, Side, Status } from '../games/baccarat/types';
 
 export function useBaccaratGame() {
   const { user, authReady, isAuthenticated } = useAuth();
@@ -40,12 +40,22 @@ export function useBaccaratGame() {
   const [arrived, setArrived] = useState(0);
   const [shown, setShown] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [lastSettledBets, setLastSettledBets] = useState<Bets | null>(null);
+  const placementsRef = useRef<LivePlacement[]>([]);
+  placementsRef.current = placements;
 
   const balance = Math.max(0, Math.round((user?.balance ?? 0) * 100));
   const bets = betsFromLivePlacements(placements);
   const total = totalCents(bets);
   const remaining = balance;
   const editable = canInteract(phase, Boolean(isAuthenticated && authReady));
+  const canRebet =
+    editable &&
+    !busy &&
+    placements.length === 0 &&
+    lastSettledBets != null &&
+    totalCents(lastSettledBets) > 0 &&
+    totalCents(lastSettledBets) <= remaining;
 
   useEffect(() => {
     roundIdRef.current = roundId;
@@ -113,6 +123,8 @@ export function useBaccaratGame() {
       setPhase('RESULT');
       if (data.outcome) setOutcome(data.outcome);
       if (Array.isArray(data.history)) setHistory(data.history);
+      const settled = betsFromLivePlacements(placementsRef.current);
+      if (totalCents(settled) > 0) setLastSettledBets(settled);
       setBusy(false);
     };
 
@@ -203,6 +215,17 @@ export function useBaccaratGame() {
     getSocket().emit('baccarat:clear');
   }
 
+  function rebet() {
+    if (!canRebet || !lastSettledBets) return;
+    setBusy(true);
+    setError('');
+    const socket = getSocket();
+    (['player', 'banker', 'tie'] as const).forEach((side) => {
+      const cents = lastSettledBets[side];
+      if (cents >= 50) socket.emit('baccarat:bet', { side, amount: cents / 100 });
+    });
+  }
+
   const status: Status = phase === 'DEALING' ? 'dealing' : phase === 'RESULT' ? 'result' : 'betting';
 
   return {
@@ -224,10 +247,12 @@ export function useBaccaratGame() {
     total,
     remaining,
     editable,
+    canRebet,
     totals,
     placements,
     place,
     undo,
     clear,
+    rebet,
   };
 }

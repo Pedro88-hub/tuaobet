@@ -1,14 +1,14 @@
-import { ChevronLeft, ShieldCheck, History } from 'lucide-react';
+import { ChevronLeft, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useBaccaratGame } from '../hooks/useBaccaratGame';
 import { BaccaratTable } from '../components/games/baccarat/BaccaratTable';
-import { BaccaratBetPanel } from '../components/games/baccarat/BaccaratBetPanel';
+import { BaccaratChipTray, BaccaratWalletBar } from '../components/games/baccarat/BaccaratBetPanel';
+import { BaccaratRoads } from '../components/games/baccarat/BaccaratRoads';
 import { flyChip } from '../components/games/baccarat/flyChip';
-import { GameCountdownBar, BACCARAT_COUNTDOWN_SECONDS } from '../components/games/GameCountdownBar';
-import { SIDE_LABELS, type Side } from '../games/baccarat/types';
+import type { Side } from '../games/baccarat/types';
 import '../components/games/baccarat/baccarat.css';
 
 export function BaccaratGame() {
@@ -67,23 +67,6 @@ export function BaccaratGame() {
           </span>
         </header>
         <div className="bc-game-shell">
-          <div className="bc-countdown">
-            {game.phase === 'BETTING' && timeLeft > 0 ? (
-              <GameCountdownBar
-                progress={
-                  BACCARAT_COUNTDOWN_SECONDS > 0
-                    ? Math.min(1, Math.max(0, timeLeft) / BACCARAT_COUNTDOWN_SECONDS)
-                    : 0
-                }
-              >
-                Cartas em {timeLeft.toFixed(2)}s
-              </GameCountdownBar>
-            ) : (
-              <div className="bc-countdown-idle">
-                {game.phase === 'DEALING' ? 'Distribuindo cartas' : game.phase === 'RESULT' ? 'Resultado da mesa' : 'Preparando rodada'}
-              </div>
-            )}
-          </div>
           <BaccaratTable
             outcome={game.outcome}
             status={game.status}
@@ -99,60 +82,31 @@ export function BaccaratGame() {
             countdown={timeLeft}
             place={place}
             areaRefs={areaRefs}
+            chipTray={
+              <BaccaratChipTray
+                chip={game.chip}
+                setChip={game.setChip}
+                remaining={game.remaining}
+                total={game.total}
+                editable={game.editable}
+                authenticated={isAuthenticated}
+                canRebet={game.canRebet}
+                undo={game.undo}
+                clear={game.clear}
+                rebet={game.rebet}
+                login={openLoginModal}
+                chipRefs={chipRefs}
+              />
+            }
+            walletBar={<BaccaratWalletBar balance={game.balance} total={game.total} />}
           />
-          <BaccaratBetPanel
-            chip={game.chip}
-            setChip={game.setChip}
-            remaining={game.remaining}
-            total={game.total}
-            balance={game.balance}
-            editable={game.editable}
-            authenticated={isAuthenticated}
-            undo={game.undo}
-            clear={game.clear}
-            login={openLoginModal}
-            chipRefs={chipRefs}
-          />
+          <BaccaratRoads history={game.history} />
           {game.error && (
             <div className="bc-error" role="alert">
               <span>{game.error}</span>
             </div>
           )}
         </div>
-        <section className="bc-history" aria-label="Histórico da mesa">
-          <div className="bc-section-heading">
-            <h2>
-              <History size={16} /> Últimas rodadas
-            </h2>
-            <span>Resultados da mesa ao vivo</span>
-          </div>
-          {game.history.length > 0 ? (
-            <ol>
-              {game.history.map((item) => (
-                <li key={`${item.roundId}-${item.createdAt}`}>
-                  <span className={`bc-history-dot bc-${item.winner}`}>{SIDE_LABELS[item.winner][0]}</span>
-                  <div>
-                    <strong>
-                      {SIDE_LABELS[item.winner]}
-                      {item.winner !== 'tie' ? ' vence' : ''}
-                    </strong>
-                    <small>
-                      {new Date(item.createdAt).toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}{' '}
-                      · {item.playerTotal} : {item.bankerTotal}
-                    </small>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p>As rodadas concluídas da mesa aparecerão aqui.</p>
-          )}
-        </section>
         <details className="bc-rules">
           <summary>
             Como jogar e regras da mesa <span>+</span>
@@ -160,8 +114,9 @@ export function BaccaratGame() {
           <div>
             <p>
               Escolha uma ficha e clique em Jogador, Banca ou Empate. Cada clique aposta imediatamente. Você pode
-              apostar nas três áreas e empilhar várias fichas enquanto a contagem estiver aberta. Desfazer e limpar
-              reembolsam somente antes do fechamento. As cartas saem automaticamente a cada rodada.
+              apostar nas três áreas e empilhar várias fichas enquanto a contagem estiver aberta. Desfazer remove a
+              última ficha; Limpar reembolsa todas; Reapostar repete as apostas da rodada anterior. Ações de
+              reembolso e reaposta só na janela de apostas. As cartas saem automaticamente a cada rodada.
             </p>
             <p>
               <strong>Cartas e pontuação.</strong> Cada rodada usa oito baralhos completos (416 cartas), embaralhados
@@ -175,13 +130,15 @@ export function BaccaratGame() {
               8; com 4, contra 2–7; com 5, contra 4–7; com 6, contra 6–7; com 7, para.
             </p>
             <p>
-              <strong>Retornos, incluindo a aposta inicial.</strong> Jogador paga 2×; Banca, 1,95× (5% de comissão sobre
-              o lucro); Empate, 9×. No empate, as apostas em Jogador e Banca são devolvidas integralmente (1×, sem lucro
-              ou perda). Cada ficha é liquidada em centavos; o retorno da Banca é arredondado ao centavo
-              mais próximo, com meio centavo para cima. Exemplo: R$ 0,50 na Banca retorna R$ 0,98 quando vence.
+              <strong>Retornos, incluindo a aposta inicial.</strong> Jogador paga 2× (1:1); Banca, 1,95× (0,95:1, 5%
+              de comissão sobre o lucro); Empate, 9× (8:1). No empate, as apostas em Jogador e Banca são devolvidas
+              integralmente (1×, sem lucro ou perda). Cada ficha é liquidada em centavos; o retorno da Banca é
+              arredondado ao centavo mais próximo, com meio centavo para cima. Exemplo: R$ 0,50 na Banca retorna R$
+              0,98 quando vence.
             </p>
             <p>
-              Os totais nas áreas incluem o volume da mesa. Somente as suas fichas reais entram na carteira.
+              Os totais nas áreas incluem o volume da mesa. Somente as suas fichas reais entram na carteira. Os
+              roadmaps abaixo mostram o histórico da mesa ao vivo.
             </p>
             <p>
               Referências:{' '}

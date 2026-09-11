@@ -1,43 +1,45 @@
-import { RotateCcw, Trash2 } from 'lucide-react';
+import { RotateCcw, RotateCw, Eraser } from 'lucide-react';
 import type { MutableRefObject } from 'react';
 import { canAddChip, money } from '../../../games/baccarat/betting';
 
 const chips = [50, 100, 500, 1000, 2500, 10000, 50000];
 
-type Props = {
+type TrayProps = {
   chip: number;
   setChip: (chip: number) => void;
   remaining: number;
   total: number;
-  balance: number;
   editable: boolean;
   authenticated: boolean;
+  canRebet: boolean;
   undo: () => void;
   clear: () => void;
+  rebet: () => void;
   login: () => void;
   chipRefs: MutableRefObject<Partial<Record<number, HTMLButtonElement | null>>>;
 };
 
-export function BaccaratBetPanel(props: Props) {
+type WalletProps = {
+  balance: number;
+  total: number;
+};
+
+export function BaccaratChipTray(props: TrayProps) {
   const available = props.editable && props.authenticated;
 
   return (
-    <section className="bc-betting" aria-label="Suas apostas">
-      <div className="bc-controls">
-        <div className="bc-wallet" aria-label="Resumo da carteira">
-          <span>
-            Saldo <strong>{money(props.balance)}</strong>
-          </span>
-          <span>
-            Apostado <strong>{money(props.total)}</strong>
-          </span>
-        </div>
-        <div className="bc-chip-heading">
-          <span>
-            01 <b>Escolha sua ficha</b>
-          </span>
-          <small>Valores em reais</small>
-        </div>
+    <div className="bc-chip-tray" aria-label="Suas apostas">
+      <div className="bc-tray-row">
+        <button
+          type="button"
+          className="bc-tray-action"
+          disabled={!available || props.total === 0}
+          onClick={props.undo}
+          aria-label="Desfazer última ficha"
+        >
+          <RotateCcw size={14} />
+          <span>Desfazer</span>
+        </button>
         <div className="bc-chips" role="group" aria-label="Valor da ficha">
           {chips.map((chip, index) => (
             <button
@@ -56,37 +58,60 @@ export function BaccaratBetPanel(props: Props) {
             </button>
           ))}
         </div>
-        {props.authenticated && props.balance < 50 && (
-          <p className="bc-inline-warning">Saldo abaixo do mínimo de R$ 0,50.</p>
-        )}
-        <div className="bc-actions">
-          <button
-            type="button"
-            className="bc-icon-action"
-            disabled={!available || props.total === 0}
-            onClick={props.undo}
-            aria-label="Desfazer última ficha"
-          >
-            <RotateCcw size={17} />
-            <span>Desfazer</span>
-          </button>
-          <button
-            type="button"
-            className="bc-icon-action"
-            disabled={!available || props.total === 0}
-            onClick={props.clear}
-            aria-label="Limpar apostas"
-          >
-            <Trash2 size={17} />
-            <span>Limpar</span>
-          </button>
-          {!props.authenticated && (
-            <button type="button" className="bc-deal" onClick={props.login}>
-              Entrar para jogar
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          className="bc-tray-action"
+          disabled={!available || !props.canRebet}
+          onClick={props.rebet}
+          aria-label="Reapostar última rodada"
+        >
+          <RotateCw size={14} />
+          <span>Reapostar</span>
+        </button>
       </div>
+      {props.authenticated && props.remaining < 50 && (
+        <p className="bc-inline-warning">Saldo abaixo do mínimo de R$ 0,50.</p>
+      )}
+      <div className="bc-tray-secondary">
+        <button
+          type="button"
+          className="bc-clear-link"
+          disabled={!available || props.total === 0}
+          onClick={props.clear}
+          aria-label="Limpar apostas"
+        >
+          <Eraser size={10} />
+          Limpar
+        </button>
+        {!props.authenticated && (
+          <button type="button" className="bc-deal" onClick={props.login}>
+            Entrar para jogar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function BaccaratWalletBar({ balance, total }: WalletProps) {
+  return (
+    <div className="bc-wallet-bar" aria-label="Resumo da carteira">
+      <span>
+        Saldo <strong>{money(balance)}</strong>
+      </span>
+      <span>
+        Aposta total <strong>{money(total)}</strong>
+      </span>
+    </div>
+  );
+}
+
+/** @deprecated Prefer BaccaratChipTray + BaccaratWalletBar */
+export function BaccaratBetPanel(props: TrayProps & WalletProps) {
+  return (
+    <section className="bc-betting" aria-label="Suas apostas">
+      <BaccaratChipTray {...props} />
+      <BaccaratWalletBar balance={props.balance} total={props.total} />
     </section>
   );
 }
