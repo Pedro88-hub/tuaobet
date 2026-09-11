@@ -81,18 +81,18 @@
 .bc-table {
   margin:18px 18px 0;
   position:relative;
-  padding:7px;
+  padding:8px;
   border:1px solid #977b43;
-  border-radius:100px 100px 42% 42% / 58px 58px 44px 44px;
+  border-radius:120px 120px 56% 56% / 72px 72px 64px 64px;
   background:linear-gradient(125deg,#6a4b23,#e2bd6e 23%,#554025 45%,#b79a60 70%,#70502d);
   box-shadow:0 12px 22px #0005,inset 0 0 0 3px #0d201c
 }
 .bc-table-inner {
   position:relative;
   overflow:hidden;
-  padding:20px 34px 22px;
+  padding:24px 40px 28px;
   border:1px solid #be9d5d70;
-  border-radius:92px 92px 42% 42% / 50px 50px 38px 38px;
+  border-radius:112px 112px 52% 52% / 64px 64px 56px 56px;
   background:radial-gradient(ellipse at 50% 26%,#17664e 0,#0b4937 48%,#073428 90%);
   box-shadow:inset 0 0 70px #00190ecc
 }
@@ -171,7 +171,7 @@
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:45px;
-  max-width:640px;
+  max-width:760px;
   margin:0 auto
 }
 .bc-hand-heading {
@@ -309,21 +309,22 @@
 .bc-result {
   position:relative;
   text-align:center;
-  min-height:72px;
+  min-height:42px;
   display:flex;
   flex-direction:column;
   justify-content:center;
-  margin-top:12px
+  margin-top:18px;
+  margin-bottom:10px
 }
 .bc-result strong {
-  font-size:16px;
+  font-size:14px;
   font-weight:500;
   color:#e2e9d9
 }
 .bc-result span {
-  font-size:11px;
+  font-size:10px;
   color:#a1beab;
-  margin-top:5px
+  margin-top:3px
 }
 .bc-result i {
   font-style:normal;
@@ -331,39 +332,36 @@
 }
 .bc-result.is-complete strong {
   color:#f3d48a;
-  font-size:22px;
+  font-size:18px;
   font-family:Georgia,serif
-}
-.bc-table-note {
-  font-size:8px;
-  color:#b5b685;
-  letter-spacing:2px;
-  text-align:center;
-  margin-top:2px
-}
-.bc-table-note span {
-  margin:0 12px;
-  font-size:6px
 }
 .bc-betting {
   padding:20px 26px 24px
 }
 .bc-bet-areas {
   display:grid;
-  grid-template-columns:1fr .8fr 1fr;
-  gap:10px
+  grid-template-columns:1fr .75fr 1fr;
+  gap:10px;
+  max-width:760px;
+  margin:0 auto;
+  position:relative;
+  z-index:1
 }
 .bc-bet-area {
   border:1px solid #577b7880;
-  border-radius:11px;
+  border-radius:14px;
   text-align:left;
-  min-height:109px;
-  padding:15px 17px;
-  background:linear-gradient(150deg,#1c3e3d88,#182b2a55)
+  min-height:58px;
+  padding:10px 14px;
+  background:linear-gradient(150deg,#1c3e3d88,#182b2a55);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px
 }
 .bc-bet-area:not(:disabled):hover {
   background:#244b45;
-  transform:translateY(-2px)
+  transform:translateY(-1px)
 }
 .bc-bet-area.bc-tie {
   border-color:#a68c474d;
@@ -377,7 +375,7 @@
   display:flex;
   align-items:center;
   justify-content:space-between;
-  font-size:15px;
+  font-size:13px;
   font-weight:700;
   color:#c4e5df
 }
@@ -389,51 +387,55 @@
 }
 .bc-area-label small {
   font-weight:500;
-  font-size:11px;
+  font-size:10px;
   letter-spacing:1px
 }
 .bc-area-stake {
   display:flex;
-  gap:7px;
+  gap:6px;
   align-items:center;
-  margin:10px 0 7px;
-  font-size:12px;
+  font-size:11px;
   color:#b7c7be;
-  min-height:23px
+  min-height:20px
 }
 .bc-plus {
-  width:22px;
-  height:22px;
+  width:18px;
+  height:18px;
   border:1px dashed #668479;
   border-radius:50%;
   text-align:center;
   font-style:normal;
-  font-size:16px;
-  line-height:19px
+  font-size:13px;
+  line-height:16px
 }
 .bc-mini-chip {
   font-style:normal;
   display:grid;
   place-items:center;
-  width:23px;
-  height:23px;
+  width:20px;
+  height:20px;
   background:#cfb067;
-  border:3px dashed #eee2bb;
+  border:2px dashed #eee2bb;
   border-radius:50%;
   color:#2c3326;
-  font-size:12px
-}
-.bc-area-note {
-  font-size:9px;
-  color:#9ba99d
+  font-size:10px
 }
 .bc-bet-area.has-bet {
   border-color:#d1b875;
   background-color:#a5943220
 }
+.bc-chip-fly {
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  border-radius:50%;
+  will-change:transform,opacity;
+  transition:transform .42s cubic-bezier(.2,.7,.2,1),opacity .42s ease;
+  box-shadow:0 6px 16px #0008
+}
 .bc-controls {
   max-width:720px;
-  margin:24px auto 0
+  margin:0 auto
 }
 .bc-chip-heading {
   display:flex;
@@ -836,12 +838,12 @@
   }
   .bc-table {
     margin:10px 8px 0;
-    padding:4px;
-    border-radius:38px 38px 25px 25px
+    padding:5px;
+    border-radius:48px 48px 36px 36px
   }
   .bc-table-inner {
-    padding:18px 9px 16px;
-    border-radius:33px 33px 22px 22px
+    padding:18px 10px 18px;
+    border-radius:42px 42px 30px 30px
   }
   .bc-table-top {
     font-size:7px;
@@ -924,25 +926,19 @@
     font-size:21px
   }
   .bc-result {
-    margin-top:14px;
-    min-height:65px
+    margin-top:12px;
+    margin-bottom:8px;
+    min-height:36px
   }
   .bc-result strong {
-    font-size:14px
+    font-size:13px
   }
   .bc-result span {
     font-size:9px;
-    line-height:1.7
+    line-height:1.5
   }
   .bc-result.is-complete strong {
-    font-size:20px
-  }
-  .bc-table-note {
-    font-size:6px;
-    letter-spacing:1px
-  }
-  .bc-table-note span {
-    margin:0 6px
+    font-size:16px
   }
   .bc-betting {
     padding:14px 12px 17px
@@ -952,30 +948,25 @@
     grid-template-columns:1fr 1fr 1fr
   }
   .bc-bet-area {
-    padding:10px 8px;
-    min-height:110px;
-    border-radius:8px
+    padding:8px 7px;
+    min-height:52px;
+    border-radius:10px
   }
   .bc-area-label {
-    font-size:12px;
-    gap:4px;
+    font-size:11px;
+    gap:2px;
     flex-wrap:wrap
   }
   .bc-area-label small {
-    font-size:9px
+    font-size:8px
   }
   .bc-area-stake {
-    font-size:10px;
+    font-size:9px;
     gap:4px;
     flex-wrap:wrap;
-    min-height:33px;
-    line-height:1.4;
-    margin:9px 0 5px
-  }
-  .bc-area-note {
-    font-size:7px;
-    line-height:1.4;
-    display:block
+    min-height:18px;
+    line-height:1.3;
+    margin:0
   }
   .bc-plus {
     width:18px;
@@ -984,8 +975,8 @@
     font-size:13px
   }
   .bc-mini-chip {
-    width:20px;
-    height:20px;
+    width:18px;
+    height:18px;
     border-width:2px
   }
   .bc-controls {
