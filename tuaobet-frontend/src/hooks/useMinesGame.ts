@@ -115,7 +115,10 @@ export function useMinesGame() {
         if (res.hitMine && Array.isArray(res.minePositions) && res.minePositions.length > 0) {
           playCrashSound('mines-bomb');
           setGrid(applyMinePositions(res.minePositions));
-          setRevealed(Array(25).fill(true));
+          // Só marca o clique; boardResolved vira o restante do tabuleiro.
+          const newRev = [...revealed];
+          newRev[index] = true;
+          setRevealed(newRev);
           setGameState('GAME_OVER');
           setGameId(null);
           setHistory((prev) => [0, ...prev].slice(0, 40));
@@ -135,12 +138,12 @@ export function useMinesGame() {
           playCrashSound('mines-diamond');
           playCrashSound('cashout');
           emitCoinBurst({ direction: 'in', count: 14 });
-          if (Array.isArray(res.minePositions) && res.minePositions.length > 0) {
-            setGrid(applyMinePositions(res.minePositions));
-          }
           const newRev = [...revealed];
           newRev[index] = true;
           setRevealed(newRev);
+          if (Array.isArray(res.minePositions) && res.minePositions.length > 0) {
+            setGrid(applyMinePositions(res.minePositions));
+          }
           if (typeof res.multiplier === 'number') setMultiplier(res.multiplier);
           if (typeof res.payout === 'number') setLastPayout(res.payout);
           setGameState('CASHOUT');
@@ -197,6 +200,7 @@ export function useMinesGame() {
       if (typeof res.balance === 'number') setUserBalance(res.balance);
       playCrashSound('cashout');
       emitCoinBurst({ direction: 'in', count: 14 });
+      // revealed permanece só com cliques do jogador; boardResolved revela o resto.
       if (Array.isArray(res.minePositions) && res.minePositions.length > 0) {
         setGrid(applyMinePositions(res.minePositions));
       }

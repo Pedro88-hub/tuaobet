@@ -5,18 +5,21 @@ import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
 import { cn } from '../../../lib/utils';
 import type { GameState } from '../../../hooks/useMinesGame';
+import { formatCentsMask, numberFromMaskDigits } from '../../../lib/brlMask';
 import {
-  formatCentsMask,
-  maskDigitsFromNumber,
-  numberFromMaskDigits,
-  sanitizeMaskDigits,
-} from '../../../lib/brlMask';
+  doubleMaskDigits,
+  halveMaskDigits,
+  isStakeValid,
+  sanitizeMaskDigitsClamped,
+  stakeHint,
+} from '../../../lib/betLimits';
 
 type MinesBetPanelProps = {
   betMode: 'normal' | 'auto';
   onBetModeChange: (mode: 'normal' | 'auto') => void;
   betAmountDigits: string;
   onBetAmountDigitsChange: (digits: string) => void;
+  balance: number;
   gameState: GameState;
   isAutoPlaying: boolean;
   minesCount: number;
@@ -40,6 +43,7 @@ export function MinesBetPanel({
   onBetModeChange,
   betAmountDigits,
   onBetAmountDigitsChange,
+  balance,
   gameState,
   isAutoPlaying,
   minesCount,
@@ -58,24 +62,17 @@ export function MinesBetPanel({
   lastError,
 }: MinesBetPanelProps) {
   const betAmountDisplay = formatCentsMask(betAmountDigits);
+  const betAmountValue = numberFromMaskDigits(betAmountDigits);
+  const amountValid = isStakeValid(betAmountValue, balance);
+  const amountHint = stakeHint(betAmountValue, balance);
   const playing = gameState === 'PLAYING';
 
   const handleHalve = () => {
-    const v = numberFromMaskDigits(betAmountDigits);
-    if (!Number.isFinite(v) || v <= 0) {
-      onBetAmountDigitsChange('');
-      return;
-    }
-    onBetAmountDigitsChange(maskDigitsFromNumber(v / 2));
+    onBetAmountDigitsChange(halveMaskDigits(betAmountDigits, balance));
   };
 
   const handleDouble = () => {
-    const v = numberFromMaskDigits(betAmountDigits);
-    if (!Number.isFinite(v)) {
-      onBetAmountDigitsChange('');
-      return;
-    }
-    onBetAmountDigitsChange(maskDigitsFromNumber(v * 2));
+    onBetAmountDigitsChange(doubleMaskDigits(betAmountDigits, balance));
   };
 
   let primaryCta: ReactNode;
@@ -91,6 +88,7 @@ export function MinesBetPanel({
             : 'border border-tuao-primary/30 bg-tuao-primary text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover'
         )}
         onClick={onToggleAuto}
+        disabled={!isAutoPlaying && !amountValid}
       >
         {isAutoPlaying ? 'Parar auto' : 'Iniciar auto'}
       </Button>
@@ -122,8 +120,9 @@ export function MinesBetPanel({
         type="button"
         size="lg"
         data-mines-bet-anchor
-        className="h-12 w-full border border-tuao-primary/30 bg-tuao-primary px-2 text-[11px] font-black uppercase tracking-wider text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover sm:text-sm"
+        className="h-12 w-full border border-tuao-primary/30 bg-tuao-primary px-2 text-[11px] font-black uppercase tracking-wider text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover sm:text-sm disabled:opacity-50"
         onClick={onBeginRound}
+        disabled={!amountValid}
       >
         Começar o jogo
       </Button>
@@ -171,7 +170,9 @@ export function MinesBetPanel({
                   type="text"
                   inputMode="numeric"
                   value={betAmountDisplay}
-                  onChange={(e) => onBetAmountDigitsChange(sanitizeMaskDigits(e.target.value))}
+                  onChange={(e) =>
+                    onBetAmountDigitsChange(sanitizeMaskDigitsClamped(e.target.value, balance))
+                  }
                   disabled={playing && !isAutoPlaying}
                   className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60"
                 />
@@ -198,6 +199,9 @@ export function MinesBetPanel({
             </div>
             <div className="w-[7.75rem] shrink-0 sm:w-40 lg:w-full">{primaryCta}</div>
           </div>
+          {amountHint && !playing && (
+            <p className="text-center text-[11px] text-amber-400/90">{amountHint}</p>
+          )}
 
           <div className="space-y-2">
             <div className="text-sm font-semibold capitalize text-white">Número de minas</div>

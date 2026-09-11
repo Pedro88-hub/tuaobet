@@ -5,6 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { cn } from '../lib/utils';
+import {
+  doubleStake,
+  halveStake,
+  isStakeValid,
+  stakeHint,
+} from '../lib/betLimits';
 import { usePlinkoGame, PLINKO_ROWS_MIN, PLINKO_ROWS_MAX } from '../hooks/usePlinkoGame';
 import { BarChart2, History, Info, Maximize2, Wifi } from 'lucide-react';
 
@@ -169,7 +175,8 @@ class VisualBall {
 }
 
 export function PlinkoGame() {
-  const { isAuthenticated, openLoginModal } = useAuth();
+  const { isAuthenticated, openLoginModal, user } = useAuth();
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
   const {
     activeBalls,
     history,
@@ -276,14 +283,14 @@ export function PlinkoGame() {
   const handleHalve = () =>
     setBetAmount((prev) => {
       const v = parseFloat(prev);
-      if (!Number.isFinite(v) || v <= 0) return '';
-      return (v / 2).toFixed(2);
+      const next = halveStake(v, balance);
+      return next > 0 ? next.toFixed(2) : '';
     });
   const handleDouble = () =>
     setBetAmount((prev) => {
       const v = parseFloat(prev);
-      if (!Number.isFinite(v)) return '';
-      return (v * 2).toFixed(2);
+      const next = doubleStake(v, balance);
+      return next > 0 ? next.toFixed(2) : '';
     });
 
   const toggleFullscreen = useCallback(() => {
@@ -295,14 +302,17 @@ export function PlinkoGame() {
     }
   }, []);
 
+  const betAmountValue = parseFloat(betAmount);
+  const amountValid = isStakeValid(betAmountValue, balance);
+  const amountHint = stakeHint(betAmountValue, balance);
+
   const onDrop = () => {
     if (!isAuthenticated) {
       openLoginModal();
       return;
     }
-    const v = parseFloat(betAmount);
-    if (!Number.isFinite(v) || v <= 0) return;
-    void dropBall(v);
+    if (!isStakeValid(betAmountValue, balance)) return;
+    void dropBall(betAmountValue);
   };
 
   const getMultiplierColor = (val: number) => {
@@ -343,10 +353,26 @@ export function PlinkoGame() {
                     <input
                       type="number"
                       inputMode="decimal"
-                      min={0}
+                      min={0.5}
                       step="0.01"
                       value={betAmount}
-                      onChange={(e) => setBetAmount(e.target.value)}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '' || raw.endsWith('.') || raw.endsWith(',')) {
+                          setBetAmount(raw);
+                          return;
+                        }
+                        const n = Number.parseFloat(raw.replace(',', '.'));
+                        if (!Number.isFinite(n)) {
+                          setBetAmount(raw);
+                          return;
+                        }
+                        if (n > balance) {
+                          setBetAmount(balance > 0 ? balance.toFixed(2) : '');
+                          return;
+                        }
+                        setBetAmount(raw);
+                      }}
                       className="min-w-0 flex-1 bg-transparent text-right text-base font-bold text-white outline-none placeholder:text-tuao-text-secondary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="shrink-0 text-sm font-semibold text-white">R$</span>
@@ -368,6 +394,9 @@ export function PlinkoGame() {
                     2x
                   </button>
                 </div>
+                {amountHint && (
+                  <p className="text-center text-[11px] text-amber-400/90">{amountHint}</p>
+                )}
 
                 <div className="space-y-2">
                   <div className="text-sm font-semibold capitalize text-white">Risco</div>
@@ -409,8 +438,9 @@ export function PlinkoGame() {
                 <Button
                   type="button"
                   size="lg"
-                  className="h-12 w-full border border-tuao-primary/30 bg-tuao-primary text-sm font-black uppercase tracking-wider text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover"
+                  className="h-12 w-full border border-tuao-primary/30 bg-tuao-primary text-sm font-black uppercase tracking-wider text-tuao-dark-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:bg-tuao-primary-hover disabled:opacity-50"
                   onClick={onDrop}
+                  disabled={!amountValid}
                 >
                   Largar bola
                 </Button>

@@ -11,6 +11,7 @@ import {
 } from '../hooks/useBaccaratGame';
 import { useAuth } from '../context/AuthContext';
 import { GameCountdownBar } from '../components/games/GameCountdownBar';
+import { isStakeValid, MIN_BET } from '../lib/betLimits';
 import {
   BaccaratChipRail,
   BaccaratGameInfo,
@@ -87,6 +88,8 @@ function BaccaratGameLive() {
 
   const bettingLocked = gamePhase !== 'BETTING' || betPlaced;
   const insufficientBalance = totalWagered > balance && gamePhase === 'BETTING' && !betPlaced;
+  const belowMinStake =
+    totalWagered > 0 && totalWagered < MIN_BET && gamePhase === 'BETTING' && !betPlaced;
 
   useEffect(() => {
     if (gamePhase === 'BETTING' && !betPlaced) {
@@ -112,6 +115,10 @@ function BaccaratGameLive() {
       }
       if (bettingLocked) return;
       const nextTotal = Math.round((totalWagered + selectedChip) * 100) / 100;
+      if (balance < MIN_BET) {
+        setLocalWarn('Saldo insuficiente');
+        return;
+      }
       if (nextTotal > balance) {
         setLocalWarn('Saldo insuficiente para esta ficha.');
         return;
@@ -145,9 +152,18 @@ function BaccaratGameLive() {
       openLoginModal();
       return;
     }
-    if (insufficientBalance) return;
+    if (insufficientBalance || belowMinStake) return;
+    if (!isStakeValid(totalWagered, balance)) return;
     placeBet();
-  }, [isAuthenticated, openLoginModal, insufficientBalance, placeBet]);
+  }, [
+    isAuthenticated,
+    openLoginModal,
+    insufficientBalance,
+    belowMinStake,
+    totalWagered,
+    balance,
+    placeBet,
+  ]);
 
   const toggleFullscreen = useCallback(() => {
     const root = document.documentElement;
@@ -183,12 +199,16 @@ function BaccaratGameLive() {
                   totalWagered={totalWagered}
                   acceptedTotal={acceptedTotal}
                   bettingLocked={bettingLocked}
-                  canPlaceBet={canPlaceBet}
+                  canPlaceBet={canPlaceBet && isStakeValid(totalWagered, balance)}
                   canClear={!bettingLocked && totalWagered > 0}
                   insufficientBalance={insufficientBalance}
                   onClear={clearAll}
                   onPlaceBet={handlePlaceBet}
                 />
+
+                {belowMinStake && (
+                  <p className="text-center text-[11px] text-amber-400/90">Mínimo R$ 0,50</p>
+                )}
 
                 {betPlaced && (
                   <p className="rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3 py-2 text-center text-xs font-semibold text-emerald-200">

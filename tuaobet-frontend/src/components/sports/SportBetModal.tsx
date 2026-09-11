@@ -4,6 +4,8 @@ import { Modal } from '../ui/Modal';
 import { ApiError } from '../../services/api';
 import { placeSportBet1x2, type CachedMatchRow, type Odds1x2 } from '../../services/sportsApi';
 import { cn } from '../../lib/utils';
+import { isStakeValid, MIN_BET, stakeHint } from '../../lib/betLimits';
+import { useAuth } from '../../context/AuthContext';
 import { teamInitials } from './sportsFormatters';
 
 function CompetitionEmblemBadge({
@@ -64,8 +66,6 @@ function CrestBadge({ crestUrl, name }: { crestUrl?: string | null; name: string
   );
 }
 
-const MIN_STAKE = 0.5;
-
 export type Selection = 'HOME' | 'DRAW' | 'AWAY';
 
 interface SportBetModalProps {
@@ -86,15 +86,28 @@ export function SportBetModal({
   onSuccess,
   preferredSelection = null,
 }: SportBetModalProps) {
+  const { user } = useAuth();
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const amountValue = Number(amount.replace(',', '.'));
+  const amountValid = isStakeValid(amountValue, balance);
+  const amountHintMsg = stakeHint(amountValue, balance);
+
   const handlePlace = async (selection: Selection) => {
     if (!fixture || !odds) return;
     const n = Number(amount.replace(',', '.'));
-    if (!Number.isFinite(n) || n < MIN_STAKE) {
-      setError(`Valor mínimo R$ ${MIN_STAKE.toFixed(2)}`);
+    if (!isStakeValid(n, balance)) {
+      setError(
+        amountHintMsg ??
+          (!Number.isFinite(n) || n <= 0
+            ? `Valor mínimo R$ ${MIN_BET.toFixed(2)}`
+            : n < MIN_BET
+              ? `Valor mínimo R$ ${MIN_BET.toFixed(2)}`
+              : 'Saldo insuficiente')
+      );
       return;
     }
     setError(null);
@@ -150,11 +163,31 @@ export function SportBetModal({
             type="text"
             inputMode="decimal"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === '' || raw.endsWith('.') || raw.endsWith(',')) {
+                setAmount(raw);
+                return;
+              }
+              const n = Number.parseFloat(raw.replace(',', '.'));
+              if (!Number.isFinite(n)) {
+                setAmount(raw);
+                return;
+              }
+              if (n > balance) {
+                setAmount(balance > 0 ? balance.toFixed(2) : '');
+                return;
+              }
+              setAmount(raw);
+            }}
             disabled={loading}
             className="mt-1.5 w-full rounded-lg border border-tuao-dark-700 bg-tuao-dark-950 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-tuao-primary/50"
           />
         </label>
+
+        {amountHintMsg && !error && (
+          <p className="text-[11px] text-amber-400/90">{amountHintMsg}</p>
+        )}
 
         {error && (
           <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>
@@ -171,7 +204,7 @@ export function SportBetModal({
             <button
               key={btn.key}
               type="button"
-              disabled={loading}
+              disabled={loading || !amountValid}
               onClick={() => void handlePlace(btn.key)}
               className={cn(
                 'flex flex-col items-center gap-1 rounded-xl border border-tuao-dark-700 bg-tuao-dark-950 py-3 transition-colors',

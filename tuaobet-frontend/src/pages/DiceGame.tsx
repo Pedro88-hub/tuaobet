@@ -2,12 +2,20 @@ import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { cn } from '../lib/utils';
+import {
+  doubleStake,
+  halveStake,
+  isStakeValid,
+  MIN_BET,
+  stakeHint,
+} from '../lib/betLimits';
 import { useDiceGame } from '../hooks/useDiceGame';
 import { useAuth } from '../context/AuthContext';
 import { ShieldCheck, Users, Zap, RefreshCw, Dices } from 'lucide-react';
 
 export function DiceGame() {
-  const { isAuthenticated, openLoginModal } = useAuth();
+  const { isAuthenticated, openLoginModal, user } = useAuth();
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
   const {
     betAmount,
     setBetAmount,
@@ -28,11 +36,16 @@ export function DiceGame() {
     error: diceError,
   } = useDiceGame();
 
+  const betAmountValue = parseFloat(betAmount);
+  const amountValid = isStakeValid(betAmountValue, balance);
+  const amountHint = stakeHint(betAmountValue, balance);
+
   const onRoll = () => {
     if (!isAuthenticated) {
       openLoginModal();
       return;
     }
+    if (!amountValid) return;
     void rollDice();
   };
 
@@ -40,14 +53,14 @@ export function DiceGame() {
   const handleHalve = () =>
     setBetAmount((prev) => {
       const v = parseFloat(prev);
-      if (!Number.isFinite(v) || v <= 0) return '';
-      return Math.max(0.01, v / 2).toFixed(2);
+      const next = halveStake(v, balance);
+      return next > 0 ? next.toFixed(2) : '';
     });
   const handleDouble = () =>
     setBetAmount((prev) => {
       const v = parseFloat(prev);
-      if (!Number.isFinite(v)) return '';
-      return (v * 2).toFixed(2);
+      const next = doubleStake(v, balance);
+      return next > 0 ? next.toFixed(2) : '';
     });
 
   return (
@@ -91,9 +104,27 @@ export function DiceGame() {
                     </div>
                     <div className="relative group">
                        <Input 
-                         type="number" 
+                         type="number"
+                         min={MIN_BET}
+                         step="0.01"
                          value={betAmount} 
-                         onChange={(e) => setBetAmount(e.target.value)}
+                         onChange={(e) => {
+                           const raw = e.target.value;
+                           if (raw === '' || raw.endsWith('.') || raw.endsWith(',')) {
+                             setBetAmount(raw);
+                             return;
+                           }
+                           const n = Number.parseFloat(raw.replace(',', '.'));
+                           if (!Number.isFinite(n)) {
+                             setBetAmount(raw);
+                             return;
+                           }
+                           if (n > balance) {
+                             setBetAmount(balance > 0 ? balance.toFixed(2) : '');
+                             return;
+                           }
+                           setBetAmount(raw);
+                         }}
                          className="pr-20 font-bold bg-tuao-dark-950 border-tuao-dark-700 h-12 text-base focus:border-tuao-primary"
                          disabled={isRolling}
                        />
@@ -102,6 +133,9 @@ export function DiceGame() {
                          <button onClick={handleDouble} disabled={isRolling} className="px-2 py-2 text-xs bg-tuao-dark-800 text-tuao-text-secondary hover:text-white rounded font-bold transition-colors">2x</button>
                        </div>
                     </div>
+                    {amountHint && !isRolling && (
+                      <p className="text-[11px] text-amber-400/90">{amountHint}</p>
+                    )}
                  </div>
 
                  {/* Informações de Ganho */}
@@ -155,9 +189,9 @@ export function DiceGame() {
               <div className="p-4 mt-auto border-t border-tuao-dark-800">
                  <Button 
                    size="lg" 
-                   className="w-full h-14 text-lg font-black uppercase tracking-wider shadow-[0_0_20px_rgba(0,240,255,0.3)] bg-tuao-primary hover:bg-tuao-primary-hover text-tuao-dark-950 transition-all active:scale-95"
+                   className="w-full h-14 text-lg font-black uppercase tracking-wider shadow-[0_0_20px_rgba(0,240,255,0.3)] bg-tuao-primary hover:bg-tuao-primary-hover text-tuao-dark-950 transition-all active:scale-95 disabled:opacity-50"
                    onClick={onRoll}
-                   disabled={isRolling}
+                   disabled={isRolling || !amountValid}
                  >
                    {isRolling ? <RefreshCw className="animate-spin" /> : 'Apostar'}
                  </Button>

@@ -18,10 +18,15 @@ import {
 } from '../lib/crashSounds';
 import {
   formatCentsMask,
-  maskDigitsFromNumber,
   numberFromMaskDigits,
-  sanitizeMaskDigits,
 } from '../lib/brlMask';
+import {
+  doubleMaskDigits,
+  halveMaskDigits,
+  isStakeValid,
+  sanitizeMaskDigitsClamped,
+  stakeHint,
+} from '../lib/betLimits';
 
 // Configuração da ordem da roleta (padrão Double)
 // 0 = Branco, 1-7 = Vermelho, 8-14 = Preto
@@ -82,7 +87,9 @@ export function DoubleGame() {
 
   const betAmountDisplay = formatCentsMask(betAmountDigits);
   const betAmountValue = numberFromMaskDigits(betAmountDigits);
-  const amountValid = Number.isFinite(betAmountValue) && betAmountValue > 0;
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
+  const amountValid = isStakeValid(betAmountValue, balance);
+  const amountHint = stakeHint(betAmountValue, balance);
 
   const sumMyBets = (color: DoubleColor) =>
     bets
@@ -327,15 +334,10 @@ export function DoubleGame() {
   };
 
   const handleHalve = () => {
-    if (!Number.isFinite(betAmountValue) || betAmountValue <= 0) {
-      setBetAmountDigits('');
-      return;
-    }
-    setBetAmountDigits(maskDigitsFromNumber(betAmountValue / 2));
+    setBetAmountDigits(halveMaskDigits(betAmountDigits, balance));
   };
   const handleDoubleAmt = () => {
-    if (!Number.isFinite(betAmountValue) || betAmountValue <= 0) return;
-    setBetAmountDigits(maskDigitsFromNumber(betAmountValue * 2));
+    setBetAmountDigits(doubleMaskDigits(betAmountDigits, balance));
   };
 
   const toggleFullscreen = useCallback(() => {
@@ -384,7 +386,9 @@ export function DoubleGame() {
                       type="text"
                       inputMode="numeric"
                       value={betAmountDisplay}
-                      onChange={(e) => setBetAmountDigits(sanitizeMaskDigits(e.target.value))}
+                      onChange={(e) =>
+                        setBetAmountDigits(sanitizeMaskDigitsClamped(e.target.value, balance))
+                      }
                       disabled={amountDisabled}
                       aria-label="Valor"
                       placeholder="0,00"
@@ -411,6 +415,9 @@ export function DoubleGame() {
                     2x
                   </button>
                 </div>
+                {amountHint && !amountDisabled && (
+                  <p className="text-center text-[11px] text-amber-400/90">{amountHint}</p>
+                )}
 
                 <div className="space-y-2.5">
                   <div className="text-sm font-semibold capitalize text-white">Selecionar Cor</div>

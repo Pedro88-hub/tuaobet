@@ -19,10 +19,16 @@ import { useCrashDisplayMultiplier } from '../components/games/crash/useCrashDis
 import { levelFromXp, tierForLevel } from '../lib/xpDisplay';
 import {
   formatCentsMask,
-  maskDigitsFromNumber,
   numberFromMaskDigits,
   sanitizeMaskDigits,
 } from '../lib/brlMask';
+import {
+  doubleMaskDigits,
+  halveMaskDigits,
+  isStakeValid,
+  sanitizeMaskDigitsClamped,
+  stakeHint,
+} from '../lib/betLimits';
 
 const formatBrlAmount = (value: number) =>
   value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -86,6 +92,9 @@ export function CrashGame() {
 
   const betAmountDisplay = formatCentsMask(betAmountDigits);
   const betAmountValue = numberFromMaskDigits(betAmountDigits);
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
+  const amountValid = isStakeValid(betAmountValue, balance);
+  const amountHint = stakeHint(betAmountValue, balance);
   const autoCashoutDisplay = formatCentsMask(autoCashoutDigits);
   const autoCashoutValue = numberFromMaskDigits(autoCashoutDigits);
 
@@ -143,7 +152,7 @@ export function CrashGame() {
       return;
     }
     if (gameState === 'COUNTDOWN' && !hasServerBet) {
-      if (!Number.isFinite(amount) || amount <= 0) return;
+      if (!isStakeValid(amount, balance)) return;
       joinGame(amount, gameState);
       return;
     }
@@ -152,7 +161,7 @@ export function CrashGame() {
       return;
     }
     if (canBetNextRound) {
-      if (!Number.isFinite(amount) || amount <= 0) return;
+      if (!isStakeValid(amount, balance)) return;
       joinGame(amount, gameState);
     }
   };
@@ -171,17 +180,9 @@ export function CrashGame() {
   }, [gameState, hasServerBet, serverCashedOut, autoCashoutValue, multiplier, cashout]);
 
   const handleHalve = () =>
-    setBetAmountDigits((prev) => {
-      const v = numberFromMaskDigits(prev);
-      if (!Number.isFinite(v) || v <= 0) return '';
-      return maskDigitsFromNumber(v / 2);
-    });
+    setBetAmountDigits((prev) => halveMaskDigits(prev, balance));
   const handleDoubleAmt = () =>
-    setBetAmountDigits((prev) => {
-      const v = numberFromMaskDigits(prev);
-      if (!Number.isFinite(v)) return '';
-      return maskDigitsFromNumber(v * 2);
-    });
+    setBetAmountDigits((prev) => doubleMaskDigits(prev, balance));
 
   const toggleFullscreen = useCallback(() => {
     const root = document.documentElement;
@@ -194,6 +195,12 @@ export function CrashGame() {
 
   const amountDisabled =
     (hasServerBet && !serverCashedOut && gameState !== 'CRASHED') || queuedNextBet;
+
+  const isPlacingBetCta =
+    !queuedNextBet &&
+    !(hasServerBet && gameState === 'COUNTDOWN') &&
+    !(gameState === 'RUNNING' && hasServerBet && !serverCashedOut) &&
+    ((gameState === 'COUNTDOWN' && !hasServerBet) || canBetNextRound);
 
   return (
     <Layout>
@@ -241,7 +248,9 @@ export function CrashGame() {
                       type="text"
                       inputMode="numeric"
                       value={betAmountDisplay}
-                      onChange={(e) => setBetAmountDigits(sanitizeMaskDigits(e.target.value))}
+                      onChange={(e) =>
+                        setBetAmountDigits(sanitizeMaskDigitsClamped(e.target.value, balance))
+                      }
                       disabled={amountDisabled}
                       aria-label="Valor"
                       placeholder="0,00"
@@ -268,6 +277,9 @@ export function CrashGame() {
                     2x
                   </button>
                 </div>
+                {amountHint && !amountDisabled && (
+                  <p className="text-center text-[11px] text-amber-400/90">{amountHint}</p>
+                )}
 
                 <div className="flex w-full items-stretch gap-2">
                     <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-tuao-dark-700 bg-[#1a242d] px-3 transition-colors focus-within:border-tuao-primary focus-within:ring-1 focus-within:ring-tuao-primary sm:h-12 lg:bg-tuao-dark-950">
@@ -311,7 +323,8 @@ export function CrashGame() {
                     onClick={handleBetAction}
                     disabled={
                       (hasServerBet && serverCashedOut) ||
-                      (gameState === 'IDLE' && !canBetNextRound && !queuedNextBet)
+                      (gameState === 'IDLE' && !canBetNextRound && !queuedNextBet) ||
+                      (isPlacingBetCta && !amountValid)
                     }
                   >
                     {queuedNextBet ? (

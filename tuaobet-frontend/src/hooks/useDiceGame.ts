@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, ApiError } from '../services/api';
+import { isStakeValid, MIN_BET } from '../lib/betLimits';
 
 export interface DiceBet {
   id: string;
@@ -26,7 +27,8 @@ const FAKE_USERS = [
 ];
 
 export function useDiceGame() {
-  const { setUserBalance } = useAuth();
+  const { setUserBalance, user } = useAuth();
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
   const [betAmount, setBetAmount] = useState<string>('');
   const [rollUnder, setRollUnder] = useState<number>(50);
   const [isRolling, setIsRolling] = useState(false);
@@ -72,8 +74,14 @@ export function useDiceGame() {
     if (isRolling) return;
     setError(null);
     const amount = parseFloat(betAmount.trim() || '');
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setError('Indique um valor de aposta válido');
+    if (!isStakeValid(amount, balance)) {
+      setError(
+        !Number.isFinite(amount) || amount <= 0
+          ? 'Indique um valor de aposta válido'
+          : amount < MIN_BET
+            ? 'Mínimo R$ 0,50'
+            : 'Saldo insuficiente'
+      );
       return;
     }
     setIsRolling(true);
@@ -117,7 +125,7 @@ export function useDiceGame() {
     } finally {
       setIsRolling(false);
     }
-  }, [betAmount, rollUnder, instantBet, isRolling, setUserBalance]);
+  }, [betAmount, rollUnder, instantBet, isRolling, setUserBalance, balance]);
 
   return {
     betAmount,

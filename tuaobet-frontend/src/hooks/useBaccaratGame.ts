@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '../services/socket';
+import { MIN_BET } from '../lib/betLimits';
 
 export type BaccaratSide = 'player' | 'banker' | 'tie';
 
@@ -189,8 +190,12 @@ export function useBaccaratGame() {
   const clearError = useCallback(() => setError(null), []);
 
   const placeBet = useCallback(() => {
-    if (totalWagered <= 0) {
-      setError('Coloque fichas em Jogador, Empate ou Banca');
+    if (totalWagered < MIN_BET) {
+      setError(
+        totalWagered <= 0
+          ? 'Coloque fichas em Jogador, Empate ou Banca'
+          : 'Mínimo R$ 0,50'
+      );
       return;
     }
     if (gamePhase !== 'BETTING' || betPlaced) {
@@ -202,7 +207,7 @@ export function useBaccaratGame() {
   }, [stacks, totalWagered, gamePhase, betPlaced]);
 
   const canPlaceBet =
-    gamePhase === 'BETTING' && !betPlaced && totalWagered > 0;
+    gamePhase === 'BETTING' && !betPlaced && totalWagered >= MIN_BET;
 
   return {
     gamePhase,

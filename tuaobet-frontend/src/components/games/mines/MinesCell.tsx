@@ -1,4 +1,5 @@
-import { Bomb, Gem } from 'lucide-react';
+import minesBomb from '../../../assets/mines/bomb.png';
+import minesDiamond from '../../../assets/mines/diamond.png';
 import { cn } from '../../../lib/utils';
 import type { GameState } from '../../../hooks/useMinesGame';
 
@@ -25,20 +26,8 @@ export function MinesCell({
   isAutoPlaying,
   onReveal,
 }: MinesCellProps) {
-  const isGameOver = gameState === 'GAME_OVER';
-  const isCashout = gameState === 'CASHOUT';
   // Só abre casas não jogadas quando já temos o layout das minas (evita 25 diamantes fake).
   const showContent = isPlayerOpened || boardResolved;
-
-  const bombClass = isGameOver
-    ? 'fill-red-500 text-red-500'
-    : isCashout
-      ? 'text-white/40'
-      : 'fill-red-500 text-red-500';
-
-  const gemClass = isPlayerOpened
-    ? 'fill-tuao-primary text-tuao-primary drop-shadow-[0_0_8px_rgba(0,240,255,0.45)]'
-    : 'text-tuao-primary/30';
 
   return (
     <button
@@ -66,24 +55,16 @@ export function MinesCell({
         </div>
 
         <div
-          className={cn(
-            'absolute inset-0 flex h-full w-full items-center justify-center rounded-lg border border-tuao-dark-800 bg-tuao-dark-950',
-            isGameOver && isMine && 'border-red-500/40 bg-red-500/15',
-            isPlayerOpened &&
-              !isMine &&
-              'border-tuao-primary/35 bg-tuao-primary/[0.08] shadow-[0_0_14px_rgba(0,240,255,0.12)]',
-            boardResolved && isMine && isCashout && 'border-tuao-dark-700 bg-tuao-dark-950/80'
-          )}
+          className="absolute inset-0 flex h-full w-full items-center justify-center rounded-lg border border-tuao-dark-800 bg-tuao-dark-950"
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          {isMine ? (
-            <Bomb
-              className={cn('h-[46%] w-[46%] sm:h-[52%] sm:w-[52%]', bombClass)}
-              aria-hidden
-            />
-          ) : (
-            <Gem className={cn('h-[46%] w-[46%] sm:h-[52%] sm:w-[52%]', gemClass)} aria-hidden />
-          )}
+          <img
+            src={isMine ? minesBomb : minesDiamond}
+            alt=""
+            aria-hidden
+            draggable={false}
+            className="pointer-events-none h-[72%] w-[72%] object-contain select-none sm:h-[78%] sm:w-[78%]"
+          />
         </div>
       </div>
     </button>

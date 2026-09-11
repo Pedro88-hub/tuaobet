@@ -3,7 +3,10 @@ import { prisma } from '../lib/prisma';
 import { applyWager, reverseWager } from './userProgress';
 
 const MIN_BET = Number(process.env.MIN_BET ?? 0.5);
-/** Sem teto por defeito; só aplica se `MAX_BET` estiver definido no env. */
+/**
+ * Teto opcional por env. Sem `MAX_BET`, não há teto fixo —
+ * o máximo efetivo do jogador é o saldo (ver `debitStake` → INSUFFICIENT_BALANCE).
+ */
 const MAX_BET =
   process.env.MAX_BET != null && process.env.MAX_BET !== ''
     ? Number(process.env.MAX_BET)

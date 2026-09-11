@@ -22,13 +22,15 @@ import {
   toggleCrashSoundMuted,
 } from '../lib/crashSounds';
 import { numberFromMaskDigits } from '../lib/brlMask';
+import { isStakeValid } from '../lib/betLimits';
 
 const HISTORY_MODAL_PAGE_SIZE = 20;
 
 const formatMult = (val: number) => (val === 0 ? '0.00×' : `${val.toFixed(2)}×`);
 
 export function MinesGame() {
-  const { isAuthenticated, openLoginModal } = useAuth();
+  const { isAuthenticated, openLoginModal, user } = useAuth();
+  const balance = typeof user?.balance === 'number' ? user.balance : 0;
   const [betAmountDigits, setBetAmountDigits] = useState('');
   const [betMode, setBetMode] = useState<'normal' | 'auto'>('normal');
   const [lowerTab, setLowerTab] = useState<'apostas' | 'descricao'>('apostas');
@@ -68,9 +70,9 @@ export function MinesGame() {
       openLoginModal();
       return;
     }
-    if (!Number.isFinite(betAmountValue) || betAmountValue <= 0) return;
+    if (!isStakeValid(betAmountValue, balance)) return;
     void startGameWithBet(betAmountValue);
-  }, [isAuthenticated, openLoginModal, betAmountValue, startGameWithBet]);
+  }, [isAuthenticated, openLoginModal, betAmountValue, balance, startGameWithBet]);
 
   const { isAutoPlaying, toggleAutoPlay, stopAuto } = useMinesAutoPlay({
     enabled: betMode === 'auto',
@@ -127,6 +129,7 @@ export function MinesGame() {
             }}
             betAmountDigits={betAmountDigits}
             onBetAmountDigitsChange={setBetAmountDigits}
+            balance={balance}
             gameState={gameState}
             isAutoPlaying={isAutoPlaying}
             minesCount={minesCount}
