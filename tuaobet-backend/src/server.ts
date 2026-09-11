@@ -45,6 +45,9 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'tuaobet-api',
     cors: frontendOrigins,
+    /** Bump quando o reveal de minas no cashout estiver no ar. */
+    minesCashoutReveal: true,
+    rev: 'mines-cashout-reveal-1',
   });
 });
 

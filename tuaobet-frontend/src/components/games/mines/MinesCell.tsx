@@ -7,6 +7,8 @@ type MinesCellProps = {
   isMine: boolean;
   /** Casa aberta pelo jogador (não inclui flip cosmético). */
   isPlayerOpened: boolean;
+  /** True quando o tabuleiro já tem as posições das minas (cashout/loss). */
+  boardResolved: boolean;
   gameState: GameState;
   disabled: boolean;
   isAutoPlaying: boolean;
@@ -17,6 +19,7 @@ export function MinesCell({
   index,
   isMine,
   isPlayerOpened,
+  boardResolved,
   gameState,
   disabled,
   isAutoPlaying,
@@ -24,12 +27,13 @@ export function MinesCell({
 }: MinesCellProps) {
   const isGameOver = gameState === 'GAME_OVER';
   const isCashout = gameState === 'CASHOUT';
-  const showContent = isPlayerOpened || isGameOver || isCashout;
+  // Só abre casas não jogadas quando já temos o layout das minas (evita 25 diamantes fake).
+  const showContent = isPlayerOpened || boardResolved;
 
   const bombClass = isGameOver
     ? 'fill-red-500 text-red-500'
     : isCashout
-      ? 'text-white/35'
+      ? 'text-white/40'
       : 'fill-red-500 text-red-500';
 
   const gemClass = isPlayerOpened
@@ -67,7 +71,8 @@ export function MinesCell({
             isGameOver && isMine && 'border-red-500/40 bg-red-500/15',
             isPlayerOpened &&
               !isMine &&
-              'border-tuao-primary/35 bg-tuao-primary/[0.08] shadow-[0_0_14px_rgba(0,240,255,0.12)]'
+              'border-tuao-primary/35 bg-tuao-primary/[0.08] shadow-[0_0_14px_rgba(0,240,255,0.12)]',
+            boardResolved && isMine && isCashout && 'border-tuao-dark-700 bg-tuao-dark-950/80'
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >

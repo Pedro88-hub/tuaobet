@@ -112,7 +112,7 @@ export function useMinesGame() {
 
         if (typeof res.balance === 'number') setUserBalance(res.balance);
 
-        if (res.hitMine && res.minePositions) {
+        if (res.hitMine && Array.isArray(res.minePositions) && res.minePositions.length > 0) {
           playCrashSound('mines-bomb');
           setGrid(applyMinePositions(res.minePositions));
           setRevealed(Array(25).fill(true));
@@ -135,7 +135,7 @@ export function useMinesGame() {
           playCrashSound('mines-diamond');
           playCrashSound('cashout');
           emitCoinBurst({ direction: 'in', count: 14 });
-          if (res.minePositions) {
+          if (Array.isArray(res.minePositions) && res.minePositions.length > 0) {
             setGrid(applyMinePositions(res.minePositions));
           }
           const newRev = [...revealed];
@@ -146,7 +146,12 @@ export function useMinesGame() {
           setGameState('CASHOUT');
           setGameId(null);
           setHistory((prev) => [res.multiplier ?? 1, ...prev].slice(0, 40));
-          if (res.serverSeed && res.serverSeedHash && res.minePositions) {
+          if (
+            res.serverSeed &&
+            res.serverSeedHash &&
+            Array.isArray(res.minePositions) &&
+            res.minePositions.length > 0
+          ) {
             setFairnessReveal({
               gameId: res.gameId ?? gameId,
               serverSeed: res.serverSeed,
@@ -192,7 +197,7 @@ export function useMinesGame() {
       if (typeof res.balance === 'number') setUserBalance(res.balance);
       playCrashSound('cashout');
       emitCoinBurst({ direction: 'in', count: 14 });
-      if (res.minePositions) {
+      if (Array.isArray(res.minePositions) && res.minePositions.length > 0) {
         setGrid(applyMinePositions(res.minePositions));
       }
       setMultiplier(res.multiplier);
@@ -200,7 +205,12 @@ export function useMinesGame() {
       setGameState('CASHOUT');
       setGameId(null);
       setHistory((prev) => [res.multiplier, ...prev].slice(0, 40));
-      if (res.serverSeed && res.serverSeedHash && res.minePositions) {
+      if (
+        res.serverSeed &&
+        res.serverSeedHash &&
+        Array.isArray(res.minePositions) &&
+        res.minePositions.length > 0
+      ) {
         setFairnessReveal({
           gameId: res.gameId ?? gameId,
           serverSeed: res.serverSeed,
