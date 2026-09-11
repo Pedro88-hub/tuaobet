@@ -8,6 +8,7 @@ import { DoubleGame } from './pages/DoubleGame';
 import { PlinkoGame } from './pages/PlinkoGame';
 import { DiceGame } from './pages/DiceGame';
 import { BaccaratGame } from './pages/BaccaratGame';
+import { TowerGame } from './pages/TowerGame';
 import { Fairness } from './pages/institutional/Fairness';
 import { SportsPage } from './pages/SportsPage';
 import { AdminPage } from './pages/AdminPage';
@@ -25,6 +26,7 @@ function App() {
             <Route path="/double" element={<DoubleGame />} />
             <Route path="/plinko" element={<PlinkoGame />} />
             <Route path="/dice" element={<DiceGame />} />
+            <Route path="/tower" element={<TowerGame />} />
             <Route path="/baccarat" element={<BaccaratGame />} />
             <Route path="/fairness" element={<Fairness />} />
             <Route path="/admin" element={<AdminPage />} />
