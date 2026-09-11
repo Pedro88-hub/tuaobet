@@ -8,6 +8,9 @@ export type AdminUser = {
   username: string;
   balance: number;
   xp: number;
+  totalWagered: number;
+  totalWon: number;
+  totalLost: number;
   role: 'USER' | 'ADMIN';
   status: UserAccountStatus;
   createdAt: string;

@@ -1,5 +1,5 @@
 import type { Server } from 'socket.io';
-import { getBalance } from '../services/ledger';
+import { getWalletProgress } from '../services/ledger';
 
 let ioRef: Server | null = null;
 
@@ -7,11 +7,11 @@ export function registerGameIo(io: Server): void {
   ioRef = io;
 }
 
-/** Emite o saldo atual para o socket do utilizador (sala `user:{id}`). */
+/** Emite saldo + XP atual para o socket do utilizador (sala `user:{id}`). */
 export function pushWalletBalance(userId: string): void {
   if (!ioRef) return;
-  void getBalance(userId).then((balance) => {
-    ioRef!.to(`user:${userId}`).emit('wallet:balance', { balance });
+  void getWalletProgress(userId).then(({ balance, xp }) => {
+    ioRef!.to(`user:${userId}`).emit('wallet:balance', { balance, xp });
   });
 }
 

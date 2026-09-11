@@ -25,6 +25,9 @@ model User {
   password  String
   balance   Float    @default(0.00)
   xp        Int      @default(0) // Sistema de Níveis
+  totalWagered Float @default(0)
+  totalWon     Float @default(0)
+  totalLost    Float @default(0)
   role      UserRole @default(USER)
   status    UserStatus @default(ACTIVE)
   createdAt DateTime @default(now())

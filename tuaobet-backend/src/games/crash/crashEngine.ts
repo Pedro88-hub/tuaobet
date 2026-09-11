@@ -1,7 +1,8 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../../lib/prisma';
 import { UserStatus } from '@prisma/client';
-import { creditPayout, debitStake, validateStake } from '../../services/ledger';
+import { creditPayout, debitStake, refundStake, validateStake } from '../../services/ledger';
+import { applyLoss, applyWin } from '../../services/userProgress';
 import { pushWalletBalance } from '../../socket/pushWalletBalance';
 import {
   crashPointFromSeed,
@@ -330,14 +331,18 @@ export const initCrashGame = (io: Server) => {
 
     for (const b of toLose) {
       try {
-        await prisma.bet.update({
-          where: { id: b.betId },
-          data: {
-            result: 'loss',
-            multiplier: crashPoint,
-            payout: 0,
-          },
+        await prisma.$transaction(async (tx) => {
+          await tx.bet.update({
+            where: { id: b.betId },
+            data: {
+              result: 'loss',
+              multiplier: crashPoint,
+              payout: 0,
+            },
+          });
+          await applyLoss(tx, b.userId, b.amount);
         });
+        pushWalletBalance(b.userId);
       } catch {
         /* ignore */
       }
@@ -433,7 +438,7 @@ export const initCrashGame = (io: Server) => {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
-              await creditPayout(userId, refund, 'Crash — aposta fechada', tx);
+              await refundStake(userId, refund, 'Crash — aposta fechada', tx);
               await tx.bet.update({
                 where: { id: betRow.id },
                 data: { result: 'cancelled', payout: 0, multiplier: null },
@@ -451,7 +456,7 @@ export const initCrashGame = (io: Server) => {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
-              await creditPayout(userId, refund, 'Crash — aposta duplicada', tx);
+              await refundStake(userId, refund, 'Crash — aposta duplicada', tx);
               await tx.bet.update({
                 where: { id: betRow.id },
                 data: { result: 'cancelled', payout: 0, multiplier: null },
@@ -474,7 +479,7 @@ export const initCrashGame = (io: Server) => {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
-              await creditPayout(userId, refund, 'Crash — aposta duplicada', tx);
+              await refundStake(userId, refund, 'Crash — aposta duplicada', tx);
               await tx.bet.update({
                 where: { id: betRow.id },
                 data: { result: 'cancelled', payout: 0, multiplier: null },
@@ -557,7 +562,7 @@ export const initCrashGame = (io: Server) => {
 
       const persistCancel = async () => {
         await prisma.$transaction(async (tx) => {
-          await creditPayout(userId, refund, 'Crash — cancelamento', tx);
+          await refundStake(userId, refund, 'Crash — cancelamento', tx);
           await tx.bet.update({
             where: { id: betId! },
             data: {
@@ -629,6 +634,7 @@ export const initCrashGame = (io: Server) => {
               payout,
             },
           });
+          await applyWin(tx, userId, rec.amount, payout);
         });
         pushWalletBalance(userId);
       };

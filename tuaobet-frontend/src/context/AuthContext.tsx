@@ -15,6 +15,9 @@ export interface User {
   email: string;
   balance: number;
   xp?: number;
+  totalWagered?: number;
+  totalWon?: number;
+  totalLost?: number;
   role?: UserRole;
   status?: UserAccountStatus;
 }
@@ -92,10 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const s = getSocket();
-    const onBalance = (payload: { balance: number }) => {
+    const onBalance = (payload: { balance: number; xp?: number }) => {
       setUser((prev) => {
         if (!prev) return prev;
-        const next = { ...prev, balance: payload.balance };
+        const next = {
+          ...prev,
+          balance: payload.balance,
+          ...(typeof payload.xp === 'number' ? { xp: payload.xp } : {}),
+        };
         persistUser(next);
         return next;
       });

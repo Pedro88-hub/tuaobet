@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { creditPayout } from './ledger';
+import { applyLoss, applyWin } from './userProgress';
 import { pushWalletBalance } from '../socket/pushWalletBalance';
 import { publishBigWinForUser } from './publishBigWin';
 
@@ -53,11 +54,13 @@ export async function settlePendingSportBetsForFixture(
           where: { id: bet.id },
           data: { result: 'win', payout, multiplier: odds },
         });
+        await applyWin(tx, bet.userId, bet.amount, payout);
       } else {
         await tx.bet.update({
           where: { id: bet.id },
           data: { result: 'loss', payout: 0, multiplier: odds },
         });
+        await applyLoss(tx, bet.userId, bet.amount);
       }
     });
     pushWalletBalance(bet.userId);

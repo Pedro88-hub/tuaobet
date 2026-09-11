@@ -234,6 +234,26 @@ export const AdminUserDetailPanel: React.FC<Props> = ({
             Saldo atual:{' '}
             {user.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
+          <div className="grid grid-cols-3 gap-2 rounded-lg border border-tuao-dark-700 bg-tuao-dark-950/50 p-3 text-[11px]">
+            <div>
+              <p className="text-tuao-text-secondary">Apostado</p>
+              <p className="tabular-nums text-white">
+                {(user.totalWagered ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div>
+              <p className="text-tuao-text-secondary">Ganho</p>
+              <p className="tabular-nums text-emerald-300/90">
+                {(user.totalWon ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div>
+              <p className="text-tuao-text-secondary">Perdido</p>
+              <p className="tabular-nums text-rose-300/90">
+                {(user.totalLost ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
           <label className="block text-xs text-tuao-text-secondary">
             Email
             <input

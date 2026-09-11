@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { prisma } from '../../lib/prisma';
 import { UserStatus } from '@prisma/client';
 import { creditPayout, debitStake, validateStake } from '../../services/ledger';
+import { applyLoss, applyWin } from '../../services/userProgress';
 import { pushWalletBalance } from '../../socket/pushWalletBalance';
 import {
   playRound,
@@ -169,6 +170,7 @@ export const initBaccaratGame = (io: Server) => {
               where: { id: b.betId },
               data: { result: 'win', multiplier: mult, payout },
             });
+            await applyWin(tx, b.userId, b.totalStake, payout);
           });
           pushWalletBalance(b.userId);
           publishBigWinFromBet({
@@ -180,10 +182,14 @@ export const initBaccaratGame = (io: Server) => {
             username: b.username,
           });
         } else {
-          await prisma.bet.update({
-            where: { id: b.betId },
-            data: { result: 'loss', multiplier: mult ?? 0, payout: 0 },
+          await prisma.$transaction(async (tx) => {
+            await tx.bet.update({
+              where: { id: b.betId },
+              data: { result: 'loss', multiplier: mult ?? 0, payout: 0 },
+            });
+            await applyLoss(tx, b.userId, b.totalStake);
           });
+          pushWalletBalance(b.userId);
         }
 
         _io.to(`user:${b.userId}`).emit('baccarat:personal-result', {

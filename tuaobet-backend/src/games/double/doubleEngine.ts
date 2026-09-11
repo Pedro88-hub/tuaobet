@@ -1,7 +1,8 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from '../../lib/prisma';
 import { UserStatus } from '@prisma/client';
-import { creditPayout, debitStake, validateStake } from '../../services/ledger';
+import { creditPayout, debitStake, refundStake, refundStakes, validateStake } from '../../services/ledger';
+import { applyLoss, applyWin } from '../../services/userProgress';
 import { pushWalletBalance } from '../../socket/pushWalletBalance';
 import { doubleResultFromSeed, generateServerSeed, hashServerSeed } from '../../utils/provablyFair';
 import {
@@ -400,6 +401,7 @@ export const initDoubleGame = (io: Server) => {
                   payout,
                 },
               });
+              await applyWin(tx, b.userId, b.amount, payout);
             });
             pushWalletBalance(b.userId);
             publishBigWinFromBet({
@@ -411,14 +413,18 @@ export const initDoubleGame = (io: Server) => {
               username: b.username,
             });
           } else {
-            await prisma.bet.update({
-              where: { id: b.betId },
-              data: {
-                result: 'loss',
-                multiplier: mult || null,
-                payout: 0,
-              },
+            await prisma.$transaction(async (tx) => {
+              await tx.bet.update({
+                where: { id: b.betId },
+                data: {
+                  result: 'loss',
+                  multiplier: mult || null,
+                  payout: 0,
+                },
+              });
+              await applyLoss(tx, b.userId, b.amount);
             });
+            pushWalletBalance(b.userId);
           }
         } catch {
           /* ignore single row failure */
@@ -509,7 +515,7 @@ export const initDoubleGame = (io: Server) => {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
-              await creditPayout(userId, refund, 'Double — aposta fechada', tx);
+              await refundStake(userId, refund, 'Double — aposta fechada', tx);
               await tx.bet.update({
                 where: { id: betRow.id },
                 data: { result: 'cancelled', payout: 0, multiplier: null },
@@ -527,7 +533,7 @@ export const initDoubleGame = (io: Server) => {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
-              await creditPayout(userId, refund, 'Double — aposta duplicada', tx);
+              await refundStake(userId, refund, 'Double — aposta duplicada', tx);
               await tx.bet.update({
                 where: { id: betRow.id },
                 data: { result: 'cancelled', payout: 0, multiplier: null },
@@ -545,7 +551,7 @@ export const initDoubleGame = (io: Server) => {
           const refund = Math.round(amount * 100) / 100;
           try {
             await prisma.$transaction(async (tx) => {
-              await creditPayout(userId, refund, 'Double — aposta duplicada', tx);
+              await refundStake(userId, refund, 'Double — aposta duplicada', tx);
               await tx.bet.update({
                 where: { id: betRow.id },
                 data: { result: 'cancelled', payout: 0, multiplier: null },
@@ -603,6 +609,7 @@ export const initDoubleGame = (io: Server) => {
 
       let refundTotal = 0;
       let betIds: string[] = [];
+      let refundAmounts: number[] = [];
 
       if (doubleState === 'WAITING') {
         const mine = roundBets.filter((b) => b.userId === userId);
@@ -610,6 +617,7 @@ export const initDoubleGame = (io: Server) => {
           socket.emit('double:error', { code: 'NO_BET' });
           return;
         }
+        refundAmounts = mine.map((b) => b.amount);
         refundTotal = Math.round(mine.reduce((sum, b) => sum + b.amount, 0) * 100) / 100;
         betIds = mine.map((b) => b.betId);
         roundBets = roundBets.filter((b) => b.userId !== userId);
@@ -629,6 +637,7 @@ export const initDoubleGame = (io: Server) => {
         }
         pendingNextBets.delete(userId);
         refundTotal = Math.round(queued.amount * 100) / 100;
+        refundAmounts = [queued.amount];
         betIds = [queued.betId];
       }
 
@@ -636,7 +645,7 @@ export const initDoubleGame = (io: Server) => {
 
       const persistCancel = async () => {
         await prisma.$transaction(async (tx) => {
-          await creditPayout(userId, refundTotal, 'Double — cancelamento', tx);
+          await refundStakes(userId, refundAmounts, 'Double — cancelamento', tx);
           await tx.bet.updateMany({
             where: { id: { in: betIds }, result: 'pending' },
             data: {

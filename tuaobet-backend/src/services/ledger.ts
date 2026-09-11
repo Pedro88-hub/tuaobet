@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { applyWager, reverseWager } from './userProgress';
 
 const MIN_BET = Number(process.env.MIN_BET ?? 0.5);
 /** Sem teto por defeito; só aplica se `MAX_BET` estiver definido no env. */
@@ -40,6 +41,7 @@ export async function debitStake(
       description,
     },
   });
+  await applyWager(client, userId, amount);
 }
 
 export async function creditPayout(
@@ -64,12 +66,65 @@ export async function creditPayout(
   });
 }
 
+/** Reembolso de stake (cancelamento / duplicata) — reverte wager/XP, não conta como vitória. */
+export async function refundStake(
+  userId: string,
+  amount: number,
+  description: string,
+  tx?: Prisma.TransactionClient
+): Promise<void> {
+  if (amount <= 0) return;
+  await refundStakes(userId, [amount], description, tx);
+}
+
+/**
+ * Reembolso de várias stakes (ex.: cancel multi-cor no Double).
+ * Credita o total no saldo e reverte XP/wagered por aposta (evita erro de floor no agregado).
+ */
+export async function refundStakes(
+  userId: string,
+  amounts: number[],
+  description: string,
+  tx?: Prisma.TransactionClient
+): Promise<void> {
+  const parts = amounts.filter((a) => Number.isFinite(a) && a > 0);
+  const total = Math.round(parts.reduce((s, a) => s + a, 0) * 100) / 100;
+  if (total <= 0) return;
+  const client = tx ?? prisma;
+  await client.user.update({
+    where: { id: userId },
+    data: { balance: { increment: total } },
+  });
+  await client.transaction.create({
+    data: {
+      userId,
+      type: 'win',
+      amount: total,
+      description,
+    },
+  });
+  for (const amount of parts) {
+    await reverseWager(client, userId, amount);
+  }
+}
+
 export async function getBalance(userId: string): Promise<number> {
   const u = await prisma.user.findUnique({
     where: { id: userId },
     select: { balance: true },
   });
   return u?.balance ?? 0;
+}
+
+export async function getWalletProgress(userId: string): Promise<{
+  balance: number;
+  xp: number;
+}> {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { balance: true, xp: true },
+  });
+  return { balance: u?.balance ?? 0, xp: u?.xp ?? 0 };
 }
 
 /** Ajuste manual pelo admin (delta positivo ou negativo). */
