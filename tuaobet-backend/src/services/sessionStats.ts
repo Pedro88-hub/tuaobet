@@ -12,20 +12,13 @@ export type SessionStatsPayload = {
 
 export async function recordLoginSession(userId: string): Promise<void> {
   const now = new Date();
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { lastLoginAt: true },
-  });
-  if (!user) return;
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      previousLoginAt: user.lastLoginAt,
-      lastLoginAt: now,
-      currentSessionStartedAt: now,
-    },
-  });
+  await prisma.$executeRaw`
+    UPDATE "User"
+    SET "previousLoginAt" = "lastLoginAt",
+        "lastLoginAt" = ${now},
+        "currentSessionStartedAt" = ${now}
+    WHERE "id" = ${userId}
+  `;
 }
 
 export async function getSessionStats(

@@ -18,6 +18,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await hashPassword(password);
+    const now = new Date();
 
     const user = await prisma.user.create({
       data: {
@@ -25,8 +26,8 @@ export const register = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         balance: 50.00, // Bônus de cadastro
-        lastLoginAt: new Date(),
-        currentSessionStartedAt: new Date(),
+        lastLoginAt: now,
+        currentSessionStartedAt: now,
       }
     });
 
@@ -69,7 +70,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    await recordLoginSession(user.id);
+    await recordLoginSession(user.id).catch(() => {});
 
     const token = generateToken(user.id);
 
