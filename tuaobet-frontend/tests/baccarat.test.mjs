@@ -2,11 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { totalCents, addChip, canAddChip, parseChipCents, undoPlacement, clearPlacements, canDeal, betsFromPlacements, dealSequence, visibleTotal, revealedHistory } from '../.cache/baccarat/betting.js';
 import { PendingRoundClient } from '../.cache/baccarat/pending.js';
+import * as pendingApi from '../.cache/baccarat/pending.js';
 
 const zero = { player: 0, banker: 0, tie: 0 };
 const bets = { player: 50, banker: 0, tie: 0 };
 const id = '12345678-1234-4234-8234-123456789012';
-const round = { requestId: id, balance: 42 };
+const round = {
+  roundId: 'round-1', requestId: id, balance: 42, createdAt: '2026-09-11T12:00:00.000Z',
+  playerCards: [{rank:'9',suit:'hearts'},{rank:'K',suit:'clubs'}],
+  bankerCards: [{rank:'3',suit:'spades'},{rank:'5',suit:'diamonds'}],
+  playerTotal: 9, bankerTotal: 8, winner: 'player', totalStake: .5, totalPayout: 1,
+  settlements: [{side:'player',amount:.5,payout:1,multiplier:2,result:'win'}],
+};
 const memory = () => { const map = new Map(); return { getItem: k => map.get(k) ?? null, setItem: (k,v) => map.set(k,v), removeItem: k => map.delete(k) }; };
 test('cent arithmetic and exact custom denominations', () => {
   assert.equal(totalCents({ player: 50, banker: 100, tie: 0 }),150);
@@ -89,4 +96,41 @@ test('storage failure prevents POST and session disposal during recovery prevent
   let reject; const client=new PendingRoundClient('u',saved,{...transport,get:()=>new Promise((_,r)=>reject=r)},()=>id);
   const recovery=client.recover(); client.dispose(); reject({status:404});
   assert.equal(await recovery,null); assert.equal(posts,0);
+});
+test('malformed successful POST/GET never clears pending and valid recovery resolves it', async () => {
+  const malformed = [null, {}, {...round,requestId:'another-request'}, {...round,balance:undefined},
+    {...round,balance:NaN}, {...round,playerCards:[]}, {...round,playerCards:[{rank:'11',suit:'hearts'},round.playerCards[1]]},
+    {...round,bankerCards:[{rank:'2',suit:'invalid'},round.bankerCards[1]]}, {...round,playerTotal:10},
+    {...round,winner:'invalid'}, {...round,settlements:[]}, {...round,settlements:[{...round.settlements[0],result:'pending'}]},
+    {...round,totalPayout:-1}, {...round,totalStake:.501}, {...round,createdAt:'not-a-date'}, {...round,roundId:''}];
+  for(const response of malformed) {
+    const storage=memory(); let valid=false;
+    const client=new PendingRoundClient('u',storage,{post:async()=>response,get:async()=>valid?round:response},()=>id);
+    await assert.rejects(client.submit(bets),/resposta/i);
+    const saved=storage.getItem('tuaobet:baccarat:pending:u'); assert.ok(saved);
+    await assert.rejects(client.recover(),/resposta/i);
+    assert.equal(storage.getItem('tuaobet:baccarat:pending:u'),saved);
+    assert.ok(client.pending); valid=true;
+    assert.deepEqual(await client.recover(),round);
+    assert.equal(storage.getItem('tuaobet:baccarat:pending:u'),null);
+  }
+});
+test('older delayed balance GET cannot overwrite a newer successful submit or recovery', async () => {
+  for(const recover of [false,true]) {
+    const generation={current:0}; let balance=10; let resolveMe;
+    const isRejectedOperationCurrent=pendingApi.beginOperation(generation);
+    const delayedMe=new Promise(resolve=>{resolveMe=resolve;}).then(me=>{
+      if(isRejectedOperationCurrent()) balance=me.balance;
+    });
+    const storage=memory();
+    if(recover) storage.setItem('tuaobet:baccarat:pending:u',JSON.stringify({requestId:id,bets:{player:.5,banker:0,tie:0}}));
+    const client=new PendingRoundClient('u',storage,{post:async()=>round,get:async()=>round},()=>id);
+    const isNewOperationCurrent=pendingApi.beginOperation(generation);
+    const result=await (recover?client.recover():client.submit(bets));
+    if(isNewOperationCurrent()) balance=result.balance;
+    resolveMe({balance:10}); await delayedMe;
+    assert.equal(balance,42);
+    assert.equal(isRejectedOperationCurrent(),false);
+    assert.equal(isNewOperationCurrent(),true);
+  }
 });

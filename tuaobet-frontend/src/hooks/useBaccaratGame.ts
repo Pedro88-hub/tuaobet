@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { betsFromPlacements, canAddChip, canDeal, dealSequence, revealedHistory, totalCents, undoPlacement } from '../games/baccarat/betting';
-import { PendingRoundClient } from '../games/baccarat/pending';
+import { beginOperation, PendingRoundClient } from '../games/baccarat/pending';
 import type { Placement, Round, Side, Status } from '../games/baccarat/types';
 
 export function useBaccaratGame() {
@@ -24,12 +24,14 @@ export function useBaccaratGame() {
   const [shown,setShown]=useState(0);
   const historyVersion=useRef(0);
   const hiddenRequestId=useRef<string|null>(null);
+  const operationGeneration=useRef(0);
   const balance=Math.max(0,Math.round((user?.balance ?? 0)*100));
   const bets=betsFromPlacements(placements);
   const total=totalCents(bets);
   const editable=(status==='betting'||status==='result') && authReady;
 
   useLayoutEffect(()=>{
+    ++operationGeneration.current;
     let alive=true;
     const token=localStorage.getItem('tuaobet_token');
     const current=()=>alive && identityRef.current===identity && localStorage.getItem('tuaobet_token')===token;
@@ -57,6 +59,7 @@ export function useBaccaratGame() {
       if(current() && historyVersion.current===version) setHistory(revealedHistory(data.rounds,hiddenRequestId.current));
     }).catch(()=>{if(current()) setHistoryError('Não foi possível carregar seu histórico.');});
     if(owner.pending) {
+      const isLatestOperation=beginOperation(operationGeneration);
       lock.current=true; setStatus('recovering');
       void owner.recover().then(result=>{
         if(current() && result) {
@@ -69,7 +72,7 @@ export function useBaccaratGame() {
           if(!owner.pending) lock.current=false;
           try {
             const me=await apiFetch<{balance:number}>('/api/auth/me');
-            if(current()) setUserBalance(me.balance);
+            if(current() && isLatestOperation()) setUserBalance(me.balance);
           } catch { /* Recovery remains available without a balance rollback. */ }
         }
       });
@@ -119,6 +122,7 @@ export function useBaccaratGame() {
     if(recover && !retryable) return;
     const staged=betsFromPlacements(placementsRef.current);
     if(!recover && !canDeal(staged,balance)) return;
+    const isLatestOperation=beginOperation(operationGeneration);
     const userId=identity;
     const token=localStorage.getItem('tuaobet_token');
     const current=()=>client.current===owner && identityRef.current===userId && localStorage.getItem('tuaobet_token')===token;
@@ -138,7 +142,7 @@ export function useBaccaratGame() {
       // Fetch current server balance; never refund optimistically after a failed response.
       try {
         const me=await apiFetch<{balance:number}>('/api/auth/me');
-        if(current()) setUserBalance(me.balance);
+        if(current() && isLatestOperation()) setUserBalance(me.balance);
       } catch { /* The uncertain request stays blocked and retryable. */ }
     }
   }

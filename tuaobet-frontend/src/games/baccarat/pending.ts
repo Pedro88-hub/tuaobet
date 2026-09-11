@@ -1,7 +1,35 @@
 import { canDeal, totalCents } from './betting.js';
-import type { Bets, Pending, Round } from './types.js';
+import type { Bets, Card, Pending, Round } from './types.js';
 type Storage = Pick<globalThis.Storage,'getItem'|'setItem'|'removeItem'>;
-type Transport = { post: (body: Pending) => Promise<Round>; get: (id: string) => Promise<Round> };
+type Transport = { post: (body: Pending) => Promise<unknown>; get: (id: string) => Promise<unknown> };
+/** Captures a request generation so late reconciliation cannot overwrite a newer round. */
+export function beginOperation(generation: { current: number }): () => boolean {
+  const operation=++generation.current;
+  return ()=>generation.current===operation;
+}
+const isRecord = (value: unknown): value is Record<string,unknown> => typeof value==='object' && value!==null && !Array.isArray(value);
+const isMoney = (value: unknown): value is number => typeof value==='number' && Number.isFinite(value) && value>=0 && Number.isSafeInteger(Math.round(value*100)) && Math.abs(value*100-Math.round(value*100))<=1e-7;
+const isCard = (value: unknown): value is Card => isRecord(value) && typeof value.rank==='string' && ['A','2','3','4','5','6','7','8','9','10','J','Q','K'].includes(value.rank) && typeof value.suit==='string' && ['clubs','diamonds','hearts','spades'].includes(value.suit);
+const isHand = (value: unknown): value is Card[] => Array.isArray(value) && value.length>=2 && value.length<=3 && value.every(isCard);
+const isTotal = (value: unknown) => typeof value==='number' && Number.isInteger(value) && value>=0 && value<=9;
+const isSide = (value: unknown) => typeof value==='string' && ['player','banker','tie'].includes(value);
+
+/** A successful HTTP status alone cannot resolve a durable monetary request. */
+function validateRound(value: unknown,requestId: string): asserts value is Round {
+  const valid=isRecord(value)
+    && typeof value.roundId==='string' && value.roundId.length>0 && value.requestId===requestId
+    && typeof value.createdAt==='string' && Number.isFinite(Date.parse(value.createdAt))
+    && isHand(value.playerCards) && isHand(value.bankerCards)
+    && isTotal(value.playerTotal) && isTotal(value.bankerTotal) && isSide(value.winner)
+    && isMoney(value.balance) && isMoney(value.totalStake) && value.totalStake>=.5 && isMoney(value.totalPayout)
+    && Array.isArray(value.settlements) && value.settlements.length>=1 && value.settlements.length<=3
+    && value.settlements.every(item=>isRecord(item) && isSide(item.side)
+      && isMoney(item.amount) && item.amount>=.5 && isMoney(item.payout)
+      && typeof item.multiplier==='number' && [0,1,1.95,2,9].includes(item.multiplier)
+      && typeof item.result==='string' && ['win','loss','push'].includes(item.result))
+    && new Set(value.settlements.map(item=>item.side)).size===value.settlements.length;
+  if(!valid) throw new Error('Resposta da rodada inválida. Sua aposta continua pendente; tente recuperar.');
+}
 const statusOf = (error: unknown) => typeof error==='object' && error!==null && 'status' in error ? Number(error.status) : 0;
 export const definitiveRejection = (error: unknown) => {
   const status=statusOf(error);
@@ -49,7 +77,7 @@ export class PendingRoundClient {
     this.busy=true;
     const pending=this.pending;
     try {
-      let round: Round;
+      let round: unknown;
       if(recover) {
         try { round=await this.transport.get(pending.requestId); }
         catch(error) {
@@ -59,6 +87,7 @@ export class PendingRoundClient {
         }
       } else round=await this.transport.post(pending);
       if(!this.active) return null;
+      validateRound(round,pending.requestId);
       this.storage.removeItem(this.key);
       this.pending=null;
       return round;
