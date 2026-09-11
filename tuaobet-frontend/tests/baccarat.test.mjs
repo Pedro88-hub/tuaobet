@@ -190,10 +190,13 @@ test('casino table layout keeps shoe, casino odds labels and roadmap shells', as
   assert.match(roads, /bc-bead/);
   assert.match(roads, /bc-big-road/);
   assert.match(page, /BaccaratChipTray/);
-  assert.match(page, /BaccaratRoads/);
+  assert.match(page, /history=\{game\.history\}/);
+  assert.match(table, /BaccaratRoads/);
+  assert.match(table, /history=\{history\}/);
   assert.match(styles, /\.bc-phase-hud/);
   assert.match(styles, /\.bc-tray-row/);
   assert.match(styles, /\.bc-roads/);
+  assert.match(styles, /\.bc-area-chip/);
   assert.match(styles, /\.bc-area-pct/);
   assert.match(styles, /@media\(max-width:380px\)\s*\{[\s\S]*?\.bc-card-slot\s*\{[^}]*width:36px/s);
   assert.match(card, /revealed \? 'is-revealed' : ''/);

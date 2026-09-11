@@ -1,11 +1,12 @@
 import { useRef, type MutableRefObject, type ReactNode } from 'react';
 import shoeDeck from '../../../assets/baccarat/shoe-deck.png';
 import { canAddChip, dealSequence, money, visibleTotal } from '../../../games/baccarat/betting';
-import type { AreaTotals, LivePlacement } from '../../../games/baccarat/live';
+import type { AreaTotals, LiveHistoryItem, LivePlacement } from '../../../games/baccarat/live';
 import { SIDE_LABELS, type Outcome, type Side, type Status } from '../../../games/baccarat/types';
 import { BaccaratCard } from './BaccaratCard';
 import { BaccaratChipStack } from './BaccaratChipStack';
 import { BaccaratPhaseHud } from './BaccaratPhaseHud';
+import { BaccaratRoads } from './BaccaratRoads';
 
 type Props = {
   outcome: Outcome | null;
@@ -15,6 +16,7 @@ type Props = {
   bets: Record<Side, number>;
   totals: AreaTotals;
   placements: LivePlacement[];
+  history: LiveHistoryItem[];
   chip: number;
   remaining: number;
   editable: boolean;
@@ -42,6 +44,7 @@ export function BaccaratTable({
   bets,
   totals,
   placements,
+  history,
   chip,
   remaining,
   editable,
@@ -73,10 +76,6 @@ export function BaccaratTable({
           aria-label="Shoe de oito baralhos"
         >
           <img src={shoeDeck} alt="" draggable={false} />
-        </div>
-        <div className="bc-table-brand" aria-hidden="true">
-          <span>TUÃOBET ORIGINAL</span>
-          <strong>BACCARAT</strong>
         </div>
         <div className="bc-hands">
           {(['player', 'banker'] as const).map((side) => {
@@ -119,6 +118,10 @@ export function BaccaratTable({
               </div>
             );
           })}
+        </div>
+        <div className="bc-table-brand" aria-hidden="true">
+          <span>TUÃOBET ORIGINAL</span>
+          <strong>BACCARAT</strong>
         </div>
         <BaccaratPhaseHud status={status} countdown={countdown} outcome={outcome} />
         {chipTray}
@@ -163,6 +166,7 @@ export function BaccaratTable({
             );
           })}
         </div>
+        <BaccaratRoads history={history} />
         {walletBar}
       </div>
     </section>

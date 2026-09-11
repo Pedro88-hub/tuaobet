@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { useBaccaratGame } from '../hooks/useBaccaratGame';
 import { BaccaratTable } from '../components/games/baccarat/BaccaratTable';
 import { BaccaratChipTray, BaccaratWalletBar } from '../components/games/baccarat/BaccaratBetPanel';
-import { BaccaratRoads } from '../components/games/baccarat/BaccaratRoads';
 import { flyChip } from '../components/games/baccarat/flyChip';
 import type { Side } from '../games/baccarat/types';
 import '../components/games/baccarat/baccarat.css';
@@ -75,6 +74,7 @@ export function BaccaratGame() {
             bets={game.bets}
             totals={game.totals}
             placements={game.placements}
+            history={game.history}
             chip={game.chip}
             remaining={game.remaining}
             editable={game.editable}
@@ -100,7 +100,6 @@ export function BaccaratGame() {
             }
             walletBar={<BaccaratWalletBar balance={game.balance} total={game.total} />}
           />
-          <BaccaratRoads history={game.history} />
           {game.error && (
             <div className="bc-error" role="alert">
               <span>{game.error}</span>

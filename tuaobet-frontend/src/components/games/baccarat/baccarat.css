@@ -79,7 +79,7 @@
   box-shadow:0 18px 48px #0004
 }
 .bc-table {
-  margin:18px 18px 0;
+  margin:18px;
   position:relative;
   padding:6px;
   border:1px solid #8d7343;
@@ -90,7 +90,7 @@
 .bc-table-inner {
   position:relative;
   overflow:hidden;
-  padding:18px 20px 16px;
+  padding:14px 20px 14px;
   border:1px solid #be9d5d70;
   border-radius:12px;
   background:radial-gradient(ellipse at 50% 18%,#17664e 0,#0b4937 48%,#073428 90%);
@@ -103,37 +103,43 @@
   inset:10px;
   border:1px solid #c3a66b30;
   border-radius:inherit;
+  z-index:0;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7'%3E%3Ccircle cx='1' cy='1' r='.5' fill='%23ffffff' opacity='.06'/%3E%3C/svg%3E")
 }
 .bc-table-top {
+  position:relative;
+  z-index:1;
   display:flex;
   justify-content:space-between;
   font-size:9px;
   letter-spacing:2px;
   color:#d0c291b0;
-  padding:0 12px
+  padding:0 12px;
+  margin-bottom:2px
 }
 .bc-table-top>span:last-child {
   padding-right:76px
 }
 .bc-table-brand {
+  position:relative;
+  z-index:1;
   text-align:center;
-  padding:8px 0 12px;
+  padding:2px 0 4px;
   color:#d1ba7b
 }
 .bc-table-brand span {
   display:block;
-  font-size:8px;
-  letter-spacing:4px;
-  opacity:.8
+  font-size:7px;
+  letter-spacing:3.5px;
+  opacity:.75
 }
 .bc-table-brand strong {
   display:block;
   font-family:Georgia,serif;
-  font-size:31px;
+  font-size:22px;
   font-weight:400;
-  letter-spacing:7px;
-  margin:3px 0
+  letter-spacing:6px;
+  margin:1px 0
 }
 .bc-table-brand i {
   font-size:9px;
@@ -160,11 +166,14 @@
   user-select:none
 }
 .bc-hands {
+  position:relative;
+  z-index:3;
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:24px;
   max-width:760px;
-  margin:0 auto
+  margin:-4px auto 0;
+  padding-top:2px
 }
 .bc-hand-heading {
   display:flex;
@@ -175,7 +184,7 @@
   font-size:11px;
   font-weight:700;
   letter-spacing:2px;
-  margin-bottom:12px;
+  margin-bottom:8px;
   color:#d8e8da
 }
 .bc-hand-heading b {
@@ -312,8 +321,8 @@
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:8px;
-  margin:10px auto 6px;
+  gap:6px;
+  margin:6px auto 4px;
   max-width:420px;
   pointer-events:none
 }
@@ -398,15 +407,15 @@
   border:1px solid #577b7880;
   border-radius:10px 10px 6px 6px;
   text-align:left;
-  min-height:78px;
+  min-height:88px;
   min-width:0;
-  padding:8px 9px 7px;
+  padding:8px 9px 8px;
   background:linear-gradient(150deg,#1c3e3d88,#182b2a55);
   display:flex;
   flex-direction:column;
   justify-content:space-between;
   gap:4px;
-  overflow:hidden;
+  overflow:visible;
   position:relative;
   box-shadow:inset 0 1px 0 #ffffff22,0 4px 12px #0004
 }
@@ -491,45 +500,50 @@
   justify-content:center;
   font-size:9px;
   color:#e8f0ff;
-  min-height:18px
+  min-height:28px;
+  overflow:visible
 }
 .bc-plus {
-  width:12px;
-  height:12px;
+  width:14px;
+  height:14px;
   border:1px dashed #cfe4d8;
   border-radius:50%;
   text-align:center;
   font-style:normal;
-  font-size:10px;
-  line-height:10px;
+  font-size:11px;
+  line-height:12px;
   opacity:.7
 }
 .bc-chip-stack {
   display:flex;
   align-items:center;
-  min-height:14px
+  min-height:24px;
+  overflow:visible
 }
 .bc-area-chip {
   font-style:normal;
   display:grid;
   place-items:center;
-  width:16px;
-  height:16px;
-  margin-left:-5px;
-  border:2px dashed #eee2bb;
+  width:24px;
+  height:24px;
+  margin-left:-8px;
+  border:2px solid #ddd8c3;
   border-radius:50%;
   background:#356b69;
   color:#f7f3de;
-  font-size:5px;
+  font-size:7px;
   font-weight:700;
-  box-shadow:0 1px 0 #061715
+  letter-spacing:-.4px;
+  line-height:1;
+  box-shadow:inset 0 0 0 1px #ede9cf88,0 1px 0 #061715,0 2px 4px #0005
 }
 .bc-chip-stack .bc-area-chip:first-of-type {
   margin-left:0
 }
 .bc-chip-overflow {
   font-style:normal;
-  font-size:9px;
+  font-size:10px;
+  font-weight:700;
   margin-right:4px;
   color:#efe4bc
 }
@@ -773,46 +787,48 @@
 .bc-roads {
   display:grid;
   grid-template-columns:1fr 1.15fr;
-  gap:10px;
-  margin:12px 18px 18px;
-  padding:0
+  gap:3px;
+  margin:4px 0 0;
+  padding:0;
+  position:relative;
+  z-index:1
 }
 .bc-road {
   background:#f4f6f5;
   border:1px solid #c5d0cb;
-  border-radius:8px;
+  border-radius:3px;
   overflow:hidden;
-  min-height:132px;
+  min-height:48px;
   color:#1c2a24
 }
 .bc-road-header {
   display:flex;
   align-items:center;
-  gap:10px;
-  padding:6px 10px;
+  gap:4px;
+  padding:2px 4px;
   border-bottom:1px solid #d5ded9;
-  font-size:11px;
+  font-size:7px;
   font-weight:700;
   background:#eef2f0
 }
 .bc-road-header strong {
-  font-size:11px;
+  font-size:7px;
   color:#33443c
 }
 .bc-road-header span {
   display:inline-flex;
   align-items:center;
-  gap:4px;
+  gap:2px;
   color:#4a5d54
 }
 .bc-road-tag {
   font-style:normal;
-  width:16px;
-  height:16px;
+  width:7px;
+  height:7px;
   border-radius:50%;
   display:grid;
   place-items:center;
-  font-size:8px;
+  font-size:5px;
   font-weight:800;
   color:#fff
 }
@@ -826,9 +842,9 @@
   background:#2e9d4f
 }
 .bc-dragon {
-  font-size:10px;
+  font-size:5px;
   font-weight:700;
-  letter-spacing:.3px;
+  letter-spacing:.1px;
   text-transform:uppercase
 }
 .bc-dragon.bc-player {
@@ -841,31 +857,31 @@
 .bc-road-grid {
   display:grid;
   gap:0;
-  padding:6px;
-  min-height:96px;
+  padding:2px;
+  min-height:36px;
   overflow-x:auto
 }
 .bc-road-col {
   display:grid;
   grid-template-rows:repeat(6,1fr);
-  gap:2px;
-  min-width:18px
+  gap:0;
+  min-width:7px
 }
 .bc-road-cell {
   aspect-ratio:1;
   width:100%;
-  min-height:14px;
+  min-height:6px;
   border-radius:50%;
   display:grid;
   place-items:center;
-  font-size:8px;
+  font-size:5px;
   font-weight:800;
   border:1px solid transparent
 }
 .bc-road-cell.is-empty {
   border-color:#d7e0db;
   background:transparent;
-  border-radius:2px
+  border-radius:1px
 }
 .bc-bead-cell.bc-player {
   background:#2f6fd6;
@@ -881,15 +897,15 @@
 }
 .bc-big-cell.bc-player {
   background:transparent;
-  border:2px solid #2f6fd6
+  border:1px solid #2f6fd6
 }
 .bc-big-cell.bc-banker {
   background:transparent;
-  border:2px solid #d32f2f
+  border:1px solid #d32f2f
 }
 .bc-big-cell.bc-tie {
   background:transparent;
-  border:2px solid #2e9d4f
+  border:1px solid #2e9d4f
 }
 .bc-deal:disabled {
   background:#28382e;
@@ -1058,18 +1074,18 @@
 }
 @media(min-width:1300px) {
   .bc-table-inner {
-    padding-top:20px;
-    padding-bottom:18px
+    padding-top:16px;
+    padding-bottom:16px
   }
   .bc-table-brand {
-    padding:10px 0 16px
+    padding:4px 0 6px
   }
   .bc-card-slot {
     width:75px;
     height:105px
   }
   .bc-phase-hud {
-    margin-top:8px
+    margin-top:6px
   }
   .bc-betting {
     padding:23px 36px 26px
@@ -1094,32 +1110,33 @@
     height:20px
   }
   .bc-table {
-    margin:10px 8px 0;
+    margin:10px 8px 12px;
     padding:4px;
     border-radius:12px
   }
   .bc-table-inner {
-    padding:14px 8px 12px;
+    padding:12px 8px 10px;
     border-radius:10px
   }
   .bc-table-top {
     font-size:7px;
     letter-spacing:1.5px;
-    padding:0 8px
+    padding:0 8px;
+    margin-bottom:0
   }
   .bc-table-top>span:last-child {
     padding-right:43px
   }
   .bc-table-brand {
-    padding:10px 0 12px
+    padding:2px 0 2px
   }
   .bc-table-brand strong {
-    font-size:22px;
-    letter-spacing:4px
+    font-size:18px;
+    letter-spacing:3px
   }
   .bc-table-brand span {
     font-size:6px;
-    letter-spacing:2.5px
+    letter-spacing:2px
   }
   .bc-shoe {
     right:4px;
@@ -1128,13 +1145,14 @@
     height:60px
   }
   .bc-hands {
-    gap:12px
+    gap:12px;
+    margin-top:-2px
   }
   .bc-hand-heading {
     font-size:9px;
     letter-spacing:1.2px;
     gap:7px;
-    margin-bottom:9px
+    margin-bottom:6px
   }
   .bc-hand-heading b {
     width:23px;
@@ -1168,8 +1186,8 @@
     font-size:21px
   }
   .bc-phase-hud {
-    margin:8px auto 4px;
-    gap:6px
+    margin:6px auto 2px;
+    gap:4px
   }
   .bc-phase-timer {
     width:56px;
@@ -1199,8 +1217,8 @@
     grid-template-columns:1.15fr .85fr 1.15fr
   }
   .bc-bet-area {
-    padding:6px 6px 5px;
-    min-height:64px;
+    padding:6px 6px 6px;
+    min-height:76px;
     border-radius:8px 8px 5px 5px
   }
   .bc-area-label {
@@ -1221,21 +1239,25 @@
     font-size:8px;
     gap:2px;
     flex-wrap:wrap;
-    min-height:14px;
+    min-height:22px;
     line-height:1.2;
     margin:0
   }
   .bc-plus {
-    width:10px;
-    height:10px;
-    line-height:8px;
+    width:12px;
+    height:12px;
+    line-height:10px;
     font-size:9px
   }
   .bc-area-chip {
-    width:14px;
-    height:14px;
-    margin-left:-4px;
-    border-width:1px
+    width:20px;
+    height:20px;
+    margin-left:-6px;
+    border-width:2px;
+    font-size:6px
+  }
+  .bc-chip-stack {
+    min-height:20px
   }
   .bc-mini-chip {
     width:10px;
@@ -1282,11 +1304,22 @@
   }
   .bc-roads {
     grid-template-columns:1fr;
-    margin:10px 8px 14px;
-    gap:8px
+    margin:3px 0 0;
+    gap:3px
   }
   .bc-road {
-    min-height:110px
+    min-height:44px
+  }
+  .bc-road-grid {
+    min-height:32px;
+    padding:2px
+  }
+  .bc-road-col {
+    min-width:6px
+  }
+  .bc-road-cell {
+    min-height:5px;
+    font-size:4px
   }
   .bc-deal {
     width:auto;
