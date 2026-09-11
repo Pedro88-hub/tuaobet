@@ -35,3 +35,30 @@ export function doubleResultFromSeed(
     resultNumber === 0 ? 'white' : resultNumber <= 7 ? 'red' : 'black';
   return { resultNumber, color };
 }
+
+/**
+ * Posições de minas (0–24) a partir do seed — Fisher–Yates determinístico.
+ * Retorna `minesCount` índices únicos, ordenados.
+ */
+export function minesPositionsFromSeed(
+  serverSeed: string,
+  gameId: string,
+  minesCount: number
+): number[] {
+  const n = Math.min(Math.max(Math.floor(minesCount), 0), 25);
+  const cells = Array.from({ length: 25 }, (_, i) => i);
+  let counter = 0;
+  const nextU32 = (): number => {
+    const digest = createHash('sha256')
+      .update(`${serverSeed}:${gameId}:mines:${counter++}`, 'utf8')
+      .digest();
+    return digest.readUInt32BE(0);
+  };
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = nextU32() % (i + 1);
+    const tmp = cells[i]!;
+    cells[i] = cells[j]!;
+    cells[j] = tmp;
+  }
+  return cells.slice(0, n).sort((a, b) => a - b);
+}

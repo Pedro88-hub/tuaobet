@@ -1,4 +1,10 @@
-export type CrashSoundName = 'bet' | 'cashout' | 'cancel' | 'crash';
+export type CrashSoundName =
+  | 'bet'
+  | 'cashout'
+  | 'cancel'
+  | 'crash'
+  | 'mines-diamond'
+  | 'mines-bomb';
 
 const VOLUME = 0.35;
 const MUTE_KEY = 'tuaobet_crash_muted';
@@ -6,7 +12,18 @@ const MUTE_KEY = 'tuaobet_crash_muted';
 const MAX_DURATION_MS: Partial<Record<CrashSoundName, number>> = {
   bet: 500,
   cashout: 1000,
+  'mines-diamond': 800,
+  'mines-bomb': 1500,
 };
+
+const ALL_SOUNDS: CrashSoundName[] = [
+  'bet',
+  'cashout',
+  'cancel',
+  'crash',
+  'mines-diamond',
+  'mines-bomb',
+];
 
 const cache = new Map<CrashSoundName, HTMLAudioElement>();
 const stopTimers = new Map<CrashSoundName, ReturnType<typeof setTimeout>>();
@@ -55,7 +72,7 @@ export function stopCrashSound(name: CrashSoundName) {
 }
 
 function stopAllCrashSounds() {
-  for (const name of ['bet', 'cashout', 'cancel', 'crash'] as CrashSoundName[]) {
+  for (const name of ALL_SOUNDS) {
     stopCrashSound(name);
   }
 }
@@ -88,7 +105,7 @@ export function onCrashSoundMuteChange(listener: (muted: boolean) => void): () =
 function unlockOnce() {
   if (unlocked) return;
   unlocked = true;
-  for (const name of ['bet', 'cashout', 'cancel', 'crash'] as CrashSoundName[]) {
+  for (const name of ALL_SOUNDS) {
     const a = getAudio(name);
     a.muted = true;
     void a

@@ -62,3 +62,43 @@ export async function verifyDoubleRound(
   const outcomeOk = resultNumber === expectedNumber && color === expectedColor;
   return { ok: outcomeOk, hashOk: true, outcomeOk };
 }
+
+/** Mesma lógica que `minesPositionsFromSeed` no backend. */
+export async function minesPositionsFromSeedClient(
+  serverSeed: string,
+  gameId: string,
+  minesCount: number
+): Promise<number[]> {
+  const n = Math.min(Math.max(Math.floor(minesCount), 0), 25);
+  const cells = Array.from({ length: 25 }, (_, i) => i);
+  let counter = 0;
+  const nextU32 = async (): Promise<number> => {
+    const buf = await sha256Buffer(`${serverSeed}:${gameId}:mines:${counter++}`);
+    const view = new DataView(buf);
+    return view.getUint32(0, false);
+  };
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = (await nextU32()) % (i + 1);
+    const tmp = cells[i]!;
+    cells[i] = cells[j]!;
+    cells[j] = tmp;
+  }
+  return cells.slice(0, n).sort((a, b) => a - b);
+}
+
+export async function verifyMinesRound(
+  serverSeed: string,
+  serverSeedHash: string,
+  gameId: string,
+  minesCount: number,
+  expectedPositions: number[]
+): Promise<{ ok: boolean; hashOk: boolean; positionsOk: boolean }> {
+  const hash = await sha256HexUtf8(serverSeed);
+  const hashOk = hash === serverSeedHash;
+  if (!hashOk) return { ok: false, hashOk: false, positionsOk: false };
+  const computed = await minesPositionsFromSeedClient(serverSeed, gameId, minesCount);
+  const expected = [...expectedPositions].sort((a, b) => a - b);
+  const positionsOk =
+    computed.length === expected.length && computed.every((v, i) => v === expected[i]);
+  return { ok: positionsOk, hashOk: true, positionsOk };
+}

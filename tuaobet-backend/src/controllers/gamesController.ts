@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { randomInt } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { pushWalletBalance } from '../socket/pushWalletBalance';
@@ -7,10 +7,11 @@ import { creditPayout, debitStake, validateStake } from '../services/ledger';
 import { applyLoss, applyWin } from '../services/userProgress';
 import { publishBigWinForUser } from '../services/publishBigWin';
 import {
-  createMinesGrid,
+  createMinesGridFromSeed,
   createSession,
   deleteSession,
   getSession,
+  minePositionsFromGrid,
   nextMinesMultiplier,
 } from '../games/mines/minesStore';
 import { generatePlinkoMultipliers, PlinkoRisk } from '../games/plinko/plinkoMath';
@@ -21,6 +22,7 @@ import {
   playRound,
 } from '../games/baccarat/baccaratEngine';
 import { isBaccaratInMaintenance } from '../config/gameMaintenance';
+import { generateServerSeed, hashServerSeed } from '../utils/provablyFair';
 
 function rollDiceFloat(): number {
   return randomInt(0, 1_000_000) / 10_000;
@@ -41,7 +43,18 @@ export async function minesStart(req: AuthRequest, res: Response) {
   }
 
   try {
-    const grid = createMinesGrid(minesCount);
+    const serverSeed = generateServerSeed();
+    const serverSeedHash = hashServerSeed(serverSeed);
+    const gameId = randomUUID();
+    const { grid, minePositions } = createMinesGridFromSeed(serverSeed, gameId, minesCount);
+    if (minePositions.length !== minesCount) {
+      console.error('[mines] mine count mismatch on start', {
+        expected: minesCount,
+        got: minePositions.length,
+      });
+      return res.status(500).json({ message: 'Falha ao gerar tabuleiro' });
+    }
+
     const betRow = await prisma.$transaction(async (tx) => {
       await debitStake(userId, betAmount, 'Mines — aposta', tx);
       return tx.bet.create({
@@ -56,16 +69,21 @@ export async function minesStart(req: AuthRequest, res: Response) {
       });
     });
 
-    const sessionId = createSession({
-      userId,
-      grid,
-      revealed: Array(25).fill(false),
-      betAmount,
-      minesCount,
-      multiplier: 1,
-      betId: betRow.id,
-      gameOver: false,
-    });
+    createSession(
+      {
+        userId,
+        grid,
+        revealed: Array(25).fill(false),
+        betAmount,
+        minesCount,
+        multiplier: 1,
+        betId: betRow.id,
+        gameOver: false,
+        serverSeed,
+        serverSeedHash,
+      },
+      gameId
+    );
 
     const u = await prisma.user.findUnique({
       where: { id: userId },
@@ -74,7 +92,7 @@ export async function minesStart(req: AuthRequest, res: Response) {
 
     const balance = u?.balance ?? 0;
     pushWalletBalance(userId);
-    return res.json({ gameId: sessionId, balance });
+    return res.json({ gameId, balance, serverSeedHash });
   } catch {
     return res.status(400).json({ code: 'INSUFFICIENT_BALANCE' });
   }
@@ -101,7 +119,18 @@ export async function minesReveal(req: AuthRequest, res: Response) {
 
   if (session.grid[index]) {
     session.gameOver = true;
-    const minePositions = session.grid.map((m, i) => (m ? i : -1)).filter((i) => i >= 0);
+    const minePositions = minePositionsFromGrid(session.grid);
+    if (minePositions.length !== session.minesCount) {
+      console.error('[mines] mine count mismatch on loss', {
+        expected: session.minesCount,
+        got: minePositions.length,
+      });
+    }
+    const fairness = {
+      serverSeed: session.serverSeed,
+      serverSeedHash: session.serverSeedHash,
+      gameId,
+    };
     await prisma.$transaction(async (tx) => {
       await tx.bet.update({
         where: { id: session.betId },
@@ -122,6 +151,7 @@ export async function minesReveal(req: AuthRequest, res: Response) {
       hitIndex: index,
       minePositions,
       balance,
+      ...fairness,
     });
   }
 
@@ -136,6 +166,18 @@ export async function minesReveal(req: AuthRequest, res: Response) {
   if (revealedSafe >= maxSafe) {
     const payout = Math.round(session.betAmount * session.multiplier * 100) / 100;
     const finalMult = session.multiplier;
+    const minePositions = minePositionsFromGrid(session.grid);
+    if (minePositions.length !== session.minesCount) {
+      console.error('[mines] mine count mismatch on win', {
+        expected: session.minesCount,
+        got: minePositions.length,
+      });
+    }
+    const fairness = {
+      serverSeed: session.serverSeed,
+      serverSeedHash: session.serverSeedHash,
+      gameId,
+    };
     await prisma.$transaction(async (tx) => {
       await creditPayout(userId, payout, 'Mines — vitória (tabuleiro limpo)', tx);
       await tx.bet.update({
@@ -170,6 +212,8 @@ export async function minesReveal(req: AuthRequest, res: Response) {
       multiplier: finalMult,
       payout,
       balance,
+      minePositions,
+      ...fairness,
     });
   }
 
@@ -205,6 +249,19 @@ export async function minesCashout(req: AuthRequest, res: Response) {
   }
 
   const payout = Math.round(session.betAmount * session.multiplier * 100) / 100;
+  const minePositions = minePositionsFromGrid(session.grid);
+  if (minePositions.length !== session.minesCount) {
+    console.error('[mines] mine count mismatch on cashout', {
+      expected: session.minesCount,
+      got: minePositions.length,
+    });
+    return res.status(500).json({ message: 'Estado do tabuleiro inválido' });
+  }
+  const fairness = {
+    serverSeed: session.serverSeed,
+    serverSeedHash: session.serverSeedHash,
+    gameId,
+  };
 
   await prisma.$transaction(async (tx) => {
     await creditPayout(userId, payout, `Mines — cashout ${session.multiplier.toFixed(2)}x`, tx);
@@ -242,6 +299,8 @@ export async function minesCashout(req: AuthRequest, res: Response) {
     balance,
     multiplier: cashoutMult,
     payout,
+    minePositions,
+    ...fairness,
   });
 }
 

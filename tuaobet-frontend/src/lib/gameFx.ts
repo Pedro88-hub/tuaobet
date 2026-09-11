@@ -38,3 +38,7 @@ export function getCrashBetAnchorEl(): Element | null {
 export function getDoubleBetAnchorEl(): Element | null {
   return document.querySelector('[data-double-bet-anchor]');
 }
+
+export function getMinesBetAnchorEl(): Element | null {
+  return document.querySelector('[data-mines-bet-anchor]');
+}

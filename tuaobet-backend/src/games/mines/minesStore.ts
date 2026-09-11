@@ -1,5 +1,5 @@
-import { randomInt } from 'crypto';
 import { randomUUID } from 'crypto';
+import { minesPositionsFromSeed } from '../../utils/provablyFair';
 
 export type MinesSession = {
   userId: string;
@@ -10,20 +10,32 @@ export type MinesSession = {
   multiplier: number;
   betId: string;
   gameOver: boolean;
+  serverSeed: string;
+  serverSeedHash: string;
 };
 
 const sessions = new Map<string, MinesSession>();
 
-export function createMinesGrid(minesCount: number): boolean[] {
+export function gridFromMinePositions(positions: number[]): boolean[] {
   const grid = Array<boolean>(25).fill(false);
-  const positions = new Set<number>();
-  while (positions.size < minesCount) {
-    positions.add(randomInt(0, 25));
+  for (const i of positions) {
+    if (i >= 0 && i < 25) grid[i] = true;
   }
-  positions.forEach((i) => {
-    grid[i] = true;
-  });
   return grid;
+}
+
+export function minePositionsFromGrid(grid: boolean[]): number[] {
+  return grid.map((m, i) => (m ? i : -1)).filter((i) => i >= 0);
+}
+
+/** Gera grid a partir do seed (provably fair). */
+export function createMinesGridFromSeed(
+  serverSeed: string,
+  gameId: string,
+  minesCount: number
+): { grid: boolean[]; minePositions: number[] } {
+  const minePositions = minesPositionsFromSeed(serverSeed, gameId, minesCount);
+  return { grid: gridFromMinePositions(minePositions), minePositions };
 }
 
 export function nextMinesMultiplier(
@@ -38,8 +50,7 @@ export function nextMinesMultiplier(
   return current * (remainingCells / remainingSafe);
 }
 
-export function createSession(session: MinesSession): string {
-  const id = randomUUID();
+export function createSession(session: MinesSession, id: string = randomUUID()): string {
   sessions.set(id, session);
   return id;
 }
