@@ -182,3 +182,16 @@ model DoubleRoundResult {
 
   @@index([createdAt])
 }
+
+// Resultado de ronda Baccarat (histórico da UI; sobrevive a cold start).
+model BaccaratRoundResult {
+  id          String   @id @default(uuid())
+  roundId     Int?
+  winner      String
+  playerTotal Int
+  bankerTotal Int
+  outcome     Json
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

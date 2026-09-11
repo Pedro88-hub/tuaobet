@@ -143,10 +143,10 @@
 }
 .bc-shoe {
   position:absolute;
-  width:90px;
-  height:70px;
-  right:14px;
-  top:12px;
+  width:132px;
+  height:102px;
+  right:8px;
+  top:6px;
   transform:rotate(-6deg);
   filter:drop-shadow(4px 8px 6px #001b178f);
   z-index:2
@@ -218,8 +218,16 @@
   position:absolute;
   inset:-1px;
   perspective:700px;
-  animation:bc-deal-in .38s cubic-bezier(.2,.65,.2,1) both;
+  opacity:0;
+  z-index:4;
   filter:drop-shadow(0 5px 4px #001c1680)
+}
+.bc-card.is-dealing-in {
+  animation:bc-deal-in .42s cubic-bezier(.2,.65,.2,1) both
+}
+.bc-card.is-instant {
+  opacity:1;
+  animation:none
 }
 .bc-card-turn {
   width:100%;
@@ -574,81 +582,23 @@
 .bc-chip:not(:disabled):hover {
   transform:translateY(-4px)
 }
-.bc-custom {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-top:16px;
-  font-size:11px
-}
-.bc-custom label {
-  color:#a5b7ac;
-  display:flex;
-  align-items:center;
-  gap:13px;
-  white-space:nowrap
-}
-.bc-custom label span {
-  color:#d0d9c9
-}
-.bc-custom input {
-  width:96px;
-  min-width:0;
-  color:#e9ecdb;
-  border:1px solid #354c3d;
-  background:#0b1714;
-  border-radius:6px;
-  padding:9px 10px;
-  font-size:12px
-}
-.bc-custom button {
-  color:#dcc486;
-  border:1px solid #a38b4c55;
-  background:#b4a0620a;
-  border-radius:6px;
-  padding:9px 12px;
-  font-size:11px
-}
-.bc-custom button:disabled {
-  opacity:.35
-}
-.bc-chip-help {
-  font-size:10px;
-  color:#859b8d;
-  margin:9px 0 18px;
-  min-height:15px
-}
 .bc-wallet {
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  padding:16px 0;
-  border-top:1px solid #3b4b383f;
-  border-bottom:1px solid #3b4b383f;
-  gap:10px
-}
-.bc-wallet>div {
   display:flex;
-  flex-direction:column;
-  gap:4px
-}
-.bc-wallet>div:nth-child(2) {
-  text-align:center
-}
-.bc-wallet>div:last-child {
-  text-align:right
-}
-.bc-wallet span {
-  font-size:10px;
-  color:#819889
+  justify-content:space-between;
+  align-items:baseline;
+  gap:16px;
+  margin:0 0 12px;
+  font-size:11px;
+  color:#7f9488;
+  letter-spacing:.2px
 }
 .bc-wallet strong {
-  font-size:16px;
+  margin-left:6px;
+  font-size:12px;
   font-weight:600;
   font-variant-numeric:tabular-nums;
-  letter-spacing:-.3px
-}
-.bc-wallet>div:last-child strong {
-  color:#d9c789
+  letter-spacing:-.2px;
+  color:#d5ddd4
 }
 .bc-actions {
   display:flex;
@@ -849,8 +799,8 @@
 }
 @keyframes bc-deal-in {
   from {
-    opacity:0;
-    transform:translate(80px,-70px) rotate(18deg) scale(.65)
+    opacity:1;
+    transform:translate(var(--bc-deal-x, 80px), var(--bc-deal-y, -70px)) rotate(12deg) scale(.72)
   }
   to {
     opacity:1;
@@ -923,10 +873,10 @@
     letter-spacing:2.5px
   }
   .bc-shoe {
-    right:8px;
-    top:12px;
-    width:52px;
-    height:40px
+    right:4px;
+    top:6px;
+    width:78px;
+    height:60px
   }
   .bc-hands {
     gap:12px
@@ -1061,31 +1011,12 @@
   .bc-chip.is-selected {
     outline-offset:3px
   }
-  .bc-custom {
-    gap:6px;
-    justify-content:space-between
-  }
-  .bc-custom label {
-    font-size:10px;
-    gap:6px
-  }
-  .bc-custom input {
-    width:78px;
-    padding:8px
-  }
-  .bc-custom button {
-    font-size:10px;
-    padding:9px 8px
-  }
-  .bc-chip-help {
-    font-size:9px;
-    line-height:1.6
+  .bc-wallet {
+    margin-bottom:10px;
+    font-size:10px
   }
   .bc-wallet strong {
-    font-size:13px
-  }
-  .bc-wallet span {
-    font-size:9px
+    font-size:11px
   }
   .bc-actions {
     gap:7px;

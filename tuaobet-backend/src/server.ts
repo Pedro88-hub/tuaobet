@@ -10,6 +10,7 @@ import adminRoutes from './routes/adminRoutes';
 import publicSiteRoutes from './routes/publicSiteRoutes';
 import { initCrashGame } from './games/crash/crashEngine';
 import { initDoubleGame } from './games/double/doubleEngine';
+import { initBaccaratGame } from './games/baccarat/baccaratEngine';
 import { initMinesLiveFeed } from './games/mines/minesLiveFeed';
 import { verifySocketToken, attachUserToSocket } from './socket/socketAuth';
 import { registerGameIo } from './socket/pushWalletBalance';
@@ -80,6 +81,7 @@ io.use((socket, next) => {
 console.log('Iniciando motores de jogo...');
 initCrashGame(io);
 initDoubleGame(io);
+initBaccaratGame(io);
 initMinesLiveFeed(io);
 
 const PORT = process.env.PORT || 3000;

@@ -1,5 +1,5 @@
 import { ChevronLeft, ShieldCheck, History } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -7,7 +7,7 @@ import { useBaccaratGame } from '../hooks/useBaccaratGame';
 import { BaccaratTable } from '../components/games/baccarat/BaccaratTable';
 import { BaccaratBetPanel } from '../components/games/baccarat/BaccaratBetPanel';
 import { flyChip } from '../components/games/baccarat/flyChip';
-import { money } from '../games/baccarat/betting';
+import { GameCountdownBar, BACCARAT_COUNTDOWN_SECONDS } from '../components/games/GameCountdownBar';
 import { SIDE_LABELS, type Side } from '../games/baccarat/types';
 import '../components/games/baccarat/baccarat.css';
 
@@ -16,8 +16,34 @@ export function BaccaratGame() {
   const game = useBaccaratGame();
   const areaRefs = useRef<Partial<Record<Side, HTMLButtonElement | null>>>({});
   const chipRefs = useRef<Partial<Record<number, HTMLButtonElement | null>>>({});
+  const [timeLeft, setTimeLeft] = useState(game.countdown);
+
+  useEffect(() => {
+    if (game.phase !== 'BETTING') {
+      setTimeLeft(0);
+      return;
+    }
+    setTimeLeft((prev) => {
+      if (game.countdown <= 0) return 0;
+      if (Math.abs(prev - game.countdown) > 1.2) return game.countdown;
+      if (prev > game.countdown + 0.35) return game.countdown;
+      return prev;
+    });
+  }, [game.countdown, game.phase]);
+
+  useEffect(() => {
+    if (game.phase !== 'BETTING') return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 0.02));
+    }, 20);
+    return () => clearInterval(interval);
+  }, [game.phase, game.roundId]);
 
   function place(side: Side) {
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
     const from = chipRefs.current[game.chip] ?? document.querySelector<HTMLElement>('.bc-chip.is-selected');
     const to = areaRefs.current[side];
     if (from && to) flyChip(from, to);
@@ -33,24 +59,44 @@ export function BaccaratGame() {
               <ChevronLeft size={14} /> Originais TuãoBet
             </Link>
             <h1>
-              Baccarat <span>CLÁSSICO</span>
+              Baccarat <span>AO VIVO</span>
             </h1>
           </div>
           <span className="bc-header-detail">
-            <ShieldCheck size={15} /> Rodadas individuais
+            <ShieldCheck size={15} /> Rodadas globais
           </span>
         </header>
         <div className="bc-game-shell">
+          <div className="bc-countdown">
+            {game.phase === 'BETTING' && timeLeft > 0 ? (
+              <GameCountdownBar
+                progress={
+                  BACCARAT_COUNTDOWN_SECONDS > 0
+                    ? Math.min(1, Math.max(0, timeLeft) / BACCARAT_COUNTDOWN_SECONDS)
+                    : 0
+                }
+              >
+                Cartas em {timeLeft.toFixed(2)}s
+              </GameCountdownBar>
+            ) : (
+              <div className="bc-countdown-idle">
+                {game.phase === 'DEALING' ? 'Distribuindo cartas' : game.phase === 'RESULT' ? 'Resultado da mesa' : 'Preparando rodada'}
+              </div>
+            )}
+          </div>
           <BaccaratTable
-            round={game.round}
+            outcome={game.outcome}
             status={game.status}
             shown={game.shown}
             arrived={game.arrived}
             bets={game.bets}
+            totals={game.totals}
+            placements={game.placements}
             chip={game.chip}
             remaining={game.remaining}
             editable={game.editable}
             authenticated={isAuthenticated}
+            countdown={timeLeft}
             place={place}
             areaRefs={areaRefs}
           />
@@ -62,38 +108,28 @@ export function BaccaratGame() {
             balance={game.balance}
             editable={game.editable}
             authenticated={isAuthenticated}
-            canSubmit={game.canSubmit}
             undo={game.undo}
             clear={game.clear}
-            submit={game.submit}
             login={openLoginModal}
             chipRefs={chipRefs}
           />
           {game.error && (
             <div className="bc-error" role="alert">
-              <span>
-                {game.error}
-                {game.retryable && ' Sua aposta está preservada. Recupere a rodada antes de jogar novamente.'}
-              </span>
-              {game.retryable && (
-                <button type="button" onClick={() => void game.retry()}>
-                  Tentar recuperar
-                </button>
-              )}
+              <span>{game.error}</span>
             </div>
           )}
         </div>
-        <section className="bc-history" aria-label="Histórico pessoal">
+        <section className="bc-history" aria-label="Histórico da mesa">
           <div className="bc-section-heading">
             <h2>
-              <History size={16} /> Suas últimas rodadas
+              <History size={16} /> Últimas rodadas
             </h2>
-            <span>Até 20 resultados</span>
+            <span>Resultados da mesa ao vivo</span>
           </div>
           {game.history.length > 0 ? (
             <ol>
               {game.history.map((item) => (
-                <li key={item.roundId}>
+                <li key={`${item.roundId}-${item.createdAt}`}>
                   <span className={`bc-history-dot bc-${item.winner}`}>{SIDE_LABELS[item.winner][0]}</span>
                   <div>
                     <strong>
@@ -110,20 +146,11 @@ export function BaccaratGame() {
                       · {item.playerTotal} : {item.bankerTotal}
                     </small>
                   </div>
-                  <div className="bc-history-money">
-                    <strong>{money(Math.round(item.totalPayout * 100))}</strong>
-                    <small>Retorno · aposta {money(Math.round(item.totalStake * 100))}</small>
-                  </div>
                 </li>
               ))}
             </ol>
           ) : (
-            <p>
-              {game.historyError ||
-                (isAuthenticated
-                  ? 'Suas rodadas concluídas aparecerão aqui.'
-                  : 'Entre na sua conta para ver seu histórico pessoal.')}
-            </p>
+            <p>As rodadas concluídas da mesa aparecerão aqui.</p>
           )}
         </section>
         <details className="bc-rules">
@@ -132,8 +159,9 @@ export function BaccaratGame() {
           </summary>
           <div>
             <p>
-              Escolha uma ficha, clique em Jogador, Banca ou Empate e distribua as cartas. Você pode apostar nas três
-              áreas. Cada aposta deve ter ao menos R$ 0,50; o total respeita seu saldo e os limites do servidor.
+              Escolha uma ficha e clique em Jogador, Banca ou Empate. Cada clique aposta imediatamente. Você pode
+              apostar nas três áreas e empilhar várias fichas enquanto a contagem estiver aberta. Desfazer e limpar
+              reembolsam somente antes do fechamento. As cartas saem automaticamente a cada rodada.
             </p>
             <p>
               <strong>Cartas e pontuação.</strong> Cada rodada usa oito baralhos completos (416 cartas), embaralhados
@@ -149,8 +177,11 @@ export function BaccaratGame() {
             <p>
               <strong>Retornos, incluindo a aposta inicial.</strong> Jogador paga 2×; Banca, 1,95× (5% de comissão sobre
               o lucro); Empate, 9×. No empate, as apostas em Jogador e Banca são devolvidas integralmente (1×, sem lucro
-              ou perda). Cada área é liquidada separadamente em centavos; o retorno da Banca é arredondado ao centavo
+              ou perda). Cada ficha é liquidada em centavos; o retorno da Banca é arredondado ao centavo
               mais próximo, com meio centavo para cima. Exemplo: R$ 0,50 na Banca retorna R$ 0,98 quando vence.
+            </p>
+            <p>
+              Os totais nas áreas incluem o volume da mesa. Somente as suas fichas reais entram na carteira.
             </p>
             <p>
               Referências:{' '}

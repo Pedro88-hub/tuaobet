@@ -1,154 +1,233 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiFetch } from '../services/api';
-import { betsFromPlacements, canAddChip, canDeal, dealSequence, revealedHistory, totalCents, undoPlacement } from '../games/baccarat/betting';
-import { beginOperation, PendingRoundClient } from '../games/baccarat/pending';
-import type { Placement, Round, Side, Status } from '../games/baccarat/types';
+import { getSocket } from '../services/socket';
+import { canAddChip, dealSequence, totalCents } from '../games/baccarat/betting';
+import {
+  applyTotals,
+  BETTING_SECONDS,
+  betsFromLivePlacements,
+  canInteract,
+  emptyTotals,
+  ERROR_MESSAGES,
+  isStaleRound,
+  placementsFromServer,
+  type AreaTotals,
+  type CancelledPayload,
+  type ChipAcceptedPayload,
+  type LiveHistoryItem,
+  type LivePlacement,
+  type Phase,
+  type TotalsPayload,
+} from '../games/baccarat/live';
+import type { Outcome, Side, Status } from '../games/baccarat/types';
 
 export function useBaccaratGame() {
-  const { user, authReady, setUserBalance }=useAuth();
-  const identity=user?.id ?? null;
-  const identityRef=useRef(identity); identityRef.current=identity;
-  const client=useRef<PendingRoundClient|null>(null);
-  const lock=useRef(false);
-  const [placements,setPlacements]=useState<Placement[]>([]);
-  const placementsRef=useRef(placements); placementsRef.current=placements;
-  const [chip,setChip]=useState(50);
-  const [status,setStatus]=useState<Status>('betting');
-  const [round,setRound]=useState<Round|null>(null);
-  const [history,setHistory]=useState<Round[]>([]);
-  const [historyError,setHistoryError]=useState('');
-  const [error,setError]=useState('');
-  const [retryable,setRetryable]=useState(false);
-  const [arrived,setArrived]=useState(0);
-  const [shown,setShown]=useState(0);
-  const historyVersion=useRef(0);
-  const hiddenRequestId=useRef<string|null>(null);
-  const operationGeneration=useRef(0);
-  const balance=Math.max(0,Math.round((user?.balance ?? 0)*100));
-  const bets=betsFromPlacements(placements);
-  const total=totalCents(bets);
-  const editable=(status==='betting'||status==='result') && authReady;
+  const { user, authReady, isAuthenticated } = useAuth();
+  const identity = user?.id ?? null;
+  const identityRef = useRef(identity);
+  identityRef.current = identity;
 
-  useLayoutEffect(()=>{
-    ++operationGeneration.current;
-    let alive=true;
-    const token=localStorage.getItem('tuaobet_token');
-    const current=()=>alive && identityRef.current===identity && localStorage.getItem('tuaobet_token')===token;
-    lock.current=false; client.current=null; hiddenRequestId.current=null;
-    setPlacements([]); placementsRef.current=[]; setChip(50); setRound(null); setHistory([]);
-    setStatus('betting'); setError(''); setHistoryError(''); setRetryable(false); setShown(0); setArrived(0);
-    if(!identity || !authReady) return ()=>{alive=false;};
-    let owner: PendingRoundClient;
-    try {
-      owner=new PendingRoundClient(identity,sessionStorage,{
-        post: body=>{
-          if(!current()) return Promise.reject(Error('Sessão alterada'));
-          return apiFetch<Round>('/api/games/baccarat/deal',{method:'POST',body:JSON.stringify(body)});
-        },
-        get: id=>apiFetch<Round>(`/api/games/baccarat/round/${id}`),
-      },()=>crypto.randomUUID());
-      client.current=owner;
-      hiddenRequestId.current=owner.pending?.requestId ?? null;
-    } catch(e) {
-      lock.current=true; setStatus('recovering'); setError(e instanceof Error?e.message:'Não foi possível acessar a pendência desta sessão.');
-      return ()=>{alive=false;};
-    }
-    const version=++historyVersion.current;
-    void apiFetch<{rounds:Round[]}>('/api/games/baccarat/history').then(data=>{
-      if(current() && historyVersion.current===version) setHistory(revealedHistory(data.rounds,hiddenRequestId.current));
-    }).catch(()=>{if(current()) setHistoryError('Não foi possível carregar seu histórico.');});
-    if(owner.pending) {
-      const isLatestOperation=beginOperation(operationGeneration);
-      lock.current=true; setStatus('recovering');
-      void owner.recover().then(result=>{
-        if(current() && result) {
-          setUserBalance(result.balance); setShown(0); setArrived(0); setRound(result); setStatus('dealing');
-        }
-      }).catch(async e=>{
-        if(current()) {
-          setError(e instanceof Error?e.message:'Não foi possível recuperar a rodada.');
-          setRetryable(Boolean(owner.pending)); setStatus(owner.pending?'recovering':'betting');
-          if(!owner.pending) lock.current=false;
-          try {
-            const me=await apiFetch<{balance:number}>('/api/auth/me');
-            if(current() && isLatestOperation()) setUserBalance(me.balance);
-          } catch { /* Recovery remains available without a balance rollback. */ }
-        }
-      });
-    }
-    return ()=>{alive=false; owner.dispose(); if(client.current===owner) client.current=null;};
-  },[identity,authReady,setUserBalance]);
+  const [phase, setPhase] = useState<Phase>('BETTING');
+  const [countdown, setCountdown] = useState(BETTING_SECONDS);
+  const [roundId, setRoundId] = useState(0);
+  const roundIdRef = useRef(0);
+  const [chip, setChip] = useState(50);
+  const [placements, setPlacements] = useState<LivePlacement[]>([]);
+  const [totals, setTotals] = useState<AreaTotals>(emptyTotals());
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [history, setHistory] = useState<LiveHistoryItem[]>([]);
+  const [error, setError] = useState('');
+  const [arrived, setArrived] = useState(0);
+  const [shown, setShown] = useState(0);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(()=>{
-    if(status!=='dealing'||!round) return;
-    setArrived(0); setShown(0);
-    const count=dealSequence(round).length;
-    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const token=localStorage.getItem('tuaobet_token');
-    const current=()=>identityRef.current===identity && localStorage.getItem('tuaobet_token')===token;
-    const timers: ReturnType<typeof setTimeout>[]=[];
-    for(let index=0;index<count;index++) {
-      timers.push(setTimeout(()=>{if(current()) setArrived(index+1);},reduced?0:index*700+100));
-      timers.push(setTimeout(()=>{if(current()) setShown(index+1);},reduced?0:index*700+500));
+  const balance = Math.max(0, Math.round((user?.balance ?? 0) * 100));
+  const bets = betsFromLivePlacements(placements);
+  const total = totalCents(bets);
+  const remaining = balance;
+  const editable = canInteract(phase, Boolean(isAuthenticated && authReady));
+
+  useEffect(() => {
+    roundIdRef.current = roundId;
+  }, [roundId]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    const current = () => identityRef.current === identity;
+
+    const sync = () => socket.emit('baccarat:sync');
+
+    const onState = (data: {
+      phase: Phase;
+      countdown: number;
+      roundId?: number;
+      outcome?: Outcome;
+    }) => {
+      if (!current()) return;
+      if (data.roundId != null) {
+        if (data.roundId !== roundIdRef.current && data.phase === 'BETTING') {
+          setPlacements([]);
+          setShown(0);
+          setArrived(0);
+        }
+        setRoundId(data.roundId);
+        roundIdRef.current = data.roundId;
+      }
+      setPhase(data.phase);
+      setCountdown(data.countdown ?? 0);
+      if (data.phase === 'BETTING') {
+        setOutcome(null);
+        setShown(0);
+        setArrived(0);
+        setBusy(false);
+      } else if (data.outcome) {
+        setOutcome(data.outcome);
+      }
+    };
+
+    const onCountdown = (count: number) => {
+      if (!current()) return;
+      setCountdown(count);
+      setPhase('BETTING');
+    };
+
+    const onTotals = (payload: TotalsPayload) => {
+      if (!current()) return;
+      if (isStaleRound(roundIdRef.current, payload.roundId)) return;
+      setTotals(applyTotals(payload));
+    };
+
+    const onHistory = (items: LiveHistoryItem[]) => {
+      if (current() && Array.isArray(items)) setHistory(items);
+    };
+
+    const onDeal = (next: Outcome) => {
+      if (!current() || !next) return;
+      setPhase('DEALING');
+      setOutcome(next);
+    };
+
+    const onResult = (data: { roundId?: number; outcome?: Outcome; history?: LiveHistoryItem[] }) => {
+      if (!current()) return;
+      if (isStaleRound(roundIdRef.current, data.roundId)) return;
+      setPhase('RESULT');
+      if (data.outcome) setOutcome(data.outcome);
+      if (Array.isArray(data.history)) setHistory(data.history);
+      setBusy(false);
+    };
+
+    const onAccepted = (payload: ChipAcceptedPayload) => {
+      if (!current()) return;
+      if (isStaleRound(roundIdRef.current, payload.roundId)) return;
+      setPlacements(placementsFromServer(payload.placements));
+      setBusy(false);
+      setError('');
+    };
+
+    const onCancelled = (payload: CancelledPayload) => {
+      if (!current()) return;
+      if (isStaleRound(roundIdRef.current, payload.roundId)) return;
+      setPlacements(placementsFromServer(payload.placements));
+      setBusy(false);
+      setError('');
+    };
+
+    const onError = (payload: { code?: string }) => {
+      if (!current()) return;
+      setBusy(false);
+      setError(ERROR_MESSAGES[payload?.code ?? ''] || ERROR_MESSAGES.INVALID);
+    };
+
+    socket.on('baccarat:state', onState);
+    socket.on('baccarat:countdown', onCountdown);
+    socket.on('baccarat:totals', onTotals);
+    socket.on('baccarat:history', onHistory);
+    socket.on('baccarat:deal', onDeal);
+    socket.on('baccarat:result', onResult);
+    socket.on('baccarat:chip-accepted', onAccepted);
+    socket.on('baccarat:bet-cancelled', onCancelled);
+    socket.on('baccarat:error', onError);
+    socket.on('connect', sync);
+    sync();
+
+    return () => {
+      socket.off('baccarat:state', onState);
+      socket.off('baccarat:countdown', onCountdown);
+      socket.off('baccarat:totals', onTotals);
+      socket.off('baccarat:history', onHistory);
+      socket.off('baccarat:deal', onDeal);
+      socket.off('baccarat:result', onResult);
+      socket.off('baccarat:chip-accepted', onAccepted);
+      socket.off('baccarat:bet-cancelled', onCancelled);
+      socket.off('baccarat:error', onError);
+      socket.off('connect', sync);
+    };
+  }, [identity]);
+
+  useEffect(() => {
+    if (!outcome) return;
+    const count = dealSequence(outcome).length;
+    if (phase === 'RESULT') {
+      setArrived(count);
+      setShown(count);
+      return;
     }
-    timers.push(setTimeout(()=>{
-      if(!current()) return;
-      setStatus('result'); lock.current=false;
-      hiddenRequestId.current=null;
-      setHistory(old=>[round,...old.filter(item=>item.roundId!==round.roundId)].slice(0,20));
-      const version=++historyVersion.current;
-      void apiFetch<{rounds:Round[]}>('/api/games/baccarat/history').then(data=>{
-        if(current() && historyVersion.current===version) { setHistory(revealedHistory(data.rounds,hiddenRequestId.current)); setHistoryError(''); }
-      }).catch(()=>{if(current()) setHistoryError('Não foi possível atualizar seu histórico.');});
-    },reduced?20:count*700+200));
-    return ()=>timers.forEach(clearTimeout);
-  },[round,status,identity]);
+    if (phase !== 'DEALING') return;
+    setArrived(0);
+    setShown(0);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let index = 0; index < count; index += 1) {
+      timers.push(setTimeout(() => setArrived(index + 1), reduced ? 0 : index * 700 + 100));
+      timers.push(setTimeout(() => setShown(index + 1), reduced ? 0 : index * 700 + 500));
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [outcome, phase, roundId]);
 
   function place(side: Side) {
-    if(!editable || lock.current || !identity) return;
-    const previous=placementsRef.current;
-    if(!canAddChip(chip,balance-totalCents(betsFromPlacements(previous)))) return;
-    const next=[...previous,{side,cents:chip}]; placementsRef.current=next; setPlacements(next);
+    if (!editable || busy || !canAddChip(chip, remaining)) return;
+    setBusy(true);
     setError('');
+    getSocket().emit('baccarat:bet', { side, amount: chip / 100 });
   }
-  function replacePlacements(next: Placement[]) {
-    if(!editable || lock.current) return;
-    placementsRef.current=next; setPlacements(next); setError('');
+
+  function undo() {
+    if (!editable || busy || placements.length === 0) return;
+    setBusy(true);
+    getSocket().emit('baccarat:undo');
   }
-  async function send(recover=false) {
-    const owner=client.current;
-    if(!owner || lock.current && !recover || !identity) return;
-    if(recover && !retryable) return;
-    const staged=betsFromPlacements(placementsRef.current);
-    if(!recover && !canDeal(staged,balance)) return;
-    const isLatestOperation=beginOperation(operationGeneration);
-    const userId=identity;
-    const token=localStorage.getItem('tuaobet_token');
-    const current=()=>client.current===owner && identityRef.current===userId && localStorage.getItem('tuaobet_token')===token;
-    lock.current=true; setRetryable(false); setError(''); setStatus(recover?'recovering':'submitting');
-    try {
-      const request=recover?owner.recover():owner.submit(staged);
-      hiddenRequestId.current=owner.pending?.requestId ?? null;
-      const result=await request;
-      if(!current() || !result) return;
-      setUserBalance(result.balance); setPlacements([]); placementsRef.current=[];
-      setShown(0); setArrived(0); setRound(result); setStatus('dealing');
-    } catch(e) {
-      if(!current()) return;
-      setError(e instanceof Error?e.message:'Não foi possível concluir a rodada.');
-      const pending=Boolean(owner.pending);
-      setRetryable(pending); setStatus(pending?'recovering':'betting'); lock.current=pending;
-      // Fetch current server balance; never refund optimistically after a failed response.
-      try {
-        const me=await apiFetch<{balance:number}>('/api/auth/me');
-        if(current() && isLatestOperation()) setUserBalance(me.balance);
-      } catch { /* The uncertain request stays blocked and retryable. */ }
-    }
+
+  function clear() {
+    if (!editable || busy || placements.length === 0) return;
+    setBusy(true);
+    getSocket().emit('baccarat:clear');
   }
-  return { bets,chip,setChip,status,round,history,historyError,error,retryable,arrived,shown,balance,total,
-    remaining:Math.max(0,balance-total),editable,place,
-    undo:()=>replacePlacements(undoPlacement(placementsRef.current)),clear:()=>replacePlacements([]),
-    submit:()=>send(),retry:()=>send(true),canSubmit:editable && canDeal(bets,balance),
+
+  const status: Status = phase === 'DEALING' ? 'dealing' : phase === 'RESULT' ? 'result' : 'betting';
+
+  return {
+    bets,
+    chip,
+    setChip,
+    status,
+    phase,
+    countdown,
+    roundId,
+    outcome,
+    history,
+    historyError: '',
+    error,
+    retryable: false,
+    arrived: phase === 'BETTING' ? 0 : arrived,
+    shown: phase === 'BETTING' ? 0 : shown,
+    balance,
+    total,
+    remaining,
+    editable,
+    totals,
+    placements,
+    place,
+    undo,
+    clear,
   };
 }

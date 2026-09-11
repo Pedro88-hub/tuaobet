@@ -3,6 +3,7 @@ import { cn } from '../../lib/utils';
 
 export const CRASH_COUNTDOWN_SECONDS = 6;
 export const DOUBLE_COUNTDOWN_SECONDS = 12;
+export const BACCARAT_COUNTDOWN_SECONDS = 12;
 
 export type GameCountdownBarProps = {
   /** Fração de tempo restante entre 0 e 1 (1 = barra cheia). */

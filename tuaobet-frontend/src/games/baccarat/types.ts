@@ -11,4 +11,12 @@ export type Round = {
 };
 export type Pending = { requestId: string; bets: Bets };
 export type Status = 'betting'|'submitting'|'dealing'|'result'|'recovering';
+export type Phase = 'BETTING' | 'DEALING' | 'RESULT';
+export type Outcome = {
+  playerCards: Card[];
+  bankerCards: Card[];
+  playerTotal: number;
+  bankerTotal: number;
+  winner: Side;
+};
 export const SIDE_LABELS: Record<Side,string> = { player: 'Jogador', banker: 'Banca', tie: 'Empate' };

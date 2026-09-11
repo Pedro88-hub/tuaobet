@@ -18,7 +18,7 @@ export const money = (cents: number) => (cents/100).toLocaleString('pt-BR',{ sty
 export const cardValue = (card: Card) => card.rank==='A' ? 1 : Number(card.rank)%10 || 0;
 export const visibleTotal = (cards: Card[]) => cards.reduce((total,card)=>total+cardValue(card),0)%10;
 export const revealedHistory = (rounds: Round[], hiddenRequestId: string | null) => rounds.filter(round=>round.requestId!==hiddenRequestId).slice(0,20);
-export function dealSequence(round: Round): { side: 'player'|'banker'; card: Card; index: number }[] {
+export function dealSequence(round: Pick<Round, 'playerCards' | 'bankerCards'>): { side: 'player'|'banker'; card: Card; index: number }[] {
   const sequence = [
     {side:'player' as const,card:round.playerCards[0],index:0},
     {side:'banker' as const,card:round.bankerCards[0],index:0},

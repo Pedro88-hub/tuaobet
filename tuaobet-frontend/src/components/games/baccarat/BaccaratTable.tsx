@@ -1,5 +1,5 @@
-import type { MutableRefObject } from 'react';
-import shoeDeck from '../../../assets/baccarat/shoe-deck.jpg';
+import { useRef, type MutableRefObject } from 'react';
+import shoeDeck from '../../../assets/baccarat/shoe-deck.png';
 import { canAddChip, dealSequence, money, visibleTotal } from '../../../games/baccarat/betting';
 import type { AreaTotals, LivePlacement } from '../../../games/baccarat/live';
 import { SIDE_LABELS, type Outcome, type Side, type Status } from '../../../games/baccarat/types';
@@ -41,6 +41,7 @@ export function BaccaratTable({
   place,
   areaRefs,
 }: Props) {
+  const shoeRef = useRef<HTMLDivElement>(null);
   const sequence = outcome ? dealSequence(outcome) : [];
   const complete = status === 'result';
   const available = editable && authenticated;
@@ -53,6 +54,7 @@ export function BaccaratTable({
           <span>8 BARALHOS</span>
         </div>
         <div
+          ref={shoeRef}
           className={`bc-shoe ${status === 'dealing' ? 'is-dealing' : ''}`}
           role="img"
           aria-label="Shoe de oito baralhos"
@@ -90,6 +92,8 @@ export function BaccaratTable({
                                 card={item.card}
                                 revealed={item.order < shown}
                                 position={index}
+                                shoeRef={shoeRef}
+                                instant={complete}
                               />
                             );
                           })()
@@ -119,7 +123,7 @@ export function BaccaratTable({
                 {status === 'dealing'
                   ? 'Distribuindo as cartas…'
                   : countdown > 0
-                    ? `Apostas abertas · ${countdown}s`
+                    ? `Apostas abertas · ${countdown.toFixed(2)}s`
                     : 'A mesa é sua.'}
               </strong>
               <span>
