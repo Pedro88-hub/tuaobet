@@ -3,6 +3,7 @@ import { UserStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hashPassword, comparePassword } from '../utils/hashPassword';
 import { generateToken } from '../utils/generateToken';
+import { recordLoginSession } from '../services/sessionStats';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -23,7 +24,9 @@ export const register = async (req: Request, res: Response) => {
         username,
         email,
         password: hashedPassword,
-        balance: 50.00 // Bônus de cadastro
+        balance: 50.00, // Bônus de cadastro
+        lastLoginAt: new Date(),
+        currentSessionStartedAt: new Date(),
       }
     });
 
@@ -65,6 +68,8 @@ export const login = async (req: Request, res: Response) => {
         code: user.status === UserStatus.BANNED ? 'ACCOUNT_BANNED' : 'ACCOUNT_SUSPENDED',
       });
     }
+
+    await recordLoginSession(user.id);
 
     const token = generateToken(user.id);
 
