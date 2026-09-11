@@ -3,7 +3,7 @@ import { UserStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hashPassword, comparePassword } from '../utils/hashPassword';
 import { generateToken } from '../utils/generateToken';
-import { recordLoginSession } from '../services/sessionStats';
+import { recordLoginSession, getSessionStats as fetchSessionStats } from '../services/sessionStats';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -116,5 +116,31 @@ export const getMe = async (req: any, res: Response) => {
     return res.json(user);
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao buscar usuário' });
+  }
+};
+
+export const getSessionStats = async (req: any, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { status: true },
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    if (user.status !== UserStatus.ACTIVE) {
+      return res.status(403).json({
+        message: user.status === UserStatus.BANNED ? 'Conta banida.' : 'Conta suspensa.',
+        code: user.status === UserStatus.BANNED ? 'ACCOUNT_BANNED' : 'ACCOUNT_SUSPENDED',
+      });
+    }
+
+    const stats = await fetchSessionStats(req.userId);
+    if (!stats) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    return res.json(stats);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar estatísticas de sessão' });
   }
 };
