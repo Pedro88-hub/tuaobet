@@ -3,6 +3,7 @@ import { UserStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hashPassword, comparePassword } from '../utils/hashPassword';
 import { generateToken } from '../utils/generateToken';
+import { recordLoginSession, getSessionStats as fetchSessionStats } from '../services/sessionStats';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -17,13 +18,16 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await hashPassword(password);
+    const now = new Date();
 
     const user = await prisma.user.create({
       data: {
         username,
         email,
         password: hashedPassword,
-        balance: 50.00 // Bônus de cadastro
+        balance: 50.00, // Bônus de cadastro
+        lastLoginAt: now,
+        currentSessionStartedAt: now,
       }
     });
 
@@ -65,6 +69,8 @@ export const login = async (req: Request, res: Response) => {
         code: user.status === UserStatus.BANNED ? 'ACCOUNT_BANNED' : 'ACCOUNT_SUSPENDED',
       });
     }
+
+    await recordLoginSession(user.id).catch(() => {});
 
     const token = generateToken(user.id);
 
@@ -111,5 +117,31 @@ export const getMe = async (req: any, res: Response) => {
     return res.json(user);
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao buscar usuário' });
+  }
+};
+
+export const getSessionStats = async (req: any, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { status: true },
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    if (user.status !== UserStatus.ACTIVE) {
+      return res.status(403).json({
+        message: user.status === UserStatus.BANNED ? 'Conta banida.' : 'Conta suspensa.',
+        code: user.status === UserStatus.BANNED ? 'ACCOUNT_BANNED' : 'ACCOUNT_SUSPENDED',
+      });
+    }
+
+    const stats = await fetchSessionStats(req.userId);
+    if (!stats) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    return res.json(stats);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar estatísticas de sessão' });
   }
 };
