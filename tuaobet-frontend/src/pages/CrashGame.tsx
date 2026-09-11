@@ -14,6 +14,7 @@ import {
   toggleCrashSoundMuted,
 } from '../lib/crashSounds';
 import { ProvablyFairCrashStrip } from '../components/games/ProvablyFairStrip';
+import { CrashCashoutBanner } from '../components/games/crash/CrashCashoutBanner';
 import { CrashFlightChart } from '../components/games/crash/CrashFlightChart';
 import { useCrashDisplayMultiplier } from '../components/games/crash/useCrashDisplayMultiplier';
 import { levelFromXp, tierForLevel } from '../lib/xpDisplay';
@@ -502,33 +503,29 @@ export function CrashGame() {
                 </div>
               )}
 
-              <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex w-full max-w-[11rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-2 text-center sm:max-w-[13rem]">
+              <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 w-[11rem] -translate-x-1/2 -translate-y-1/2 text-center sm:w-[13rem]">
+                {serverCashedOut && gameState !== 'COUNTDOWN' && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1.5">
+                    <CrashCashoutBanner
+                      multiplier={serverCashoutMultiplier > 0 ? serverCashoutMultiplier : multiplier}
+                      payout={serverPayout}
+                    />
+                  </div>
+                )}
+
                 {gameState !== 'COUNTDOWN' && gameState === 'CRASHED' && (
-                  <div className="rounded-md bg-gradient-to-br from-red-600 to-rose-800 px-4 py-2 shadow-[0_8px_24px_rgba(220,38,38,0.4)] ring-1 ring-red-500/30 sm:px-5 sm:py-2.5">
+                  <div className="w-full rounded-md bg-gradient-to-br from-red-600 to-rose-800 px-4 py-2 shadow-[0_8px_24px_rgba(220,38,38,0.4)] ring-1 ring-red-500/30 sm:px-5 sm:py-2.5">
                     <div className="text-2xl font-black tabular-nums tracking-tight text-white sm:text-3xl">
                       {multiplier.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}X
                     </div>
                     <div className="mt-0.5 text-center text-[9px] font-black uppercase tracking-[0.22em] text-white/90">
                       CRASHED
                     </div>
-                    {serverCashedOut && (
-                      <div className="mt-2 border-t border-white/25 pt-2 text-center animate-in fade-in duration-300">
-                        <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-200">
-                          Ganho
-                        </span>
-                        <span className="mt-0.5 block text-sm font-bold tabular-nums text-white sm:text-base">
-                          R$ {formatBrlAmount(serverPayout)}
-                          {serverCashoutMultiplier > 0
-                            ? ` · ${formatMultiplierPt(serverCashoutMultiplier)}`
-                            : ''}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 )}
 
                 {gameState !== 'COUNTDOWN' && gameState !== 'CRASHED' && (
-                  <div className="flex flex-col items-center rounded-md border border-tuao-dark-700 bg-tuao-dark-800/90 px-3 py-1.5 shadow-inner transition-all duration-75 sm:px-4 sm:py-2">
+                  <div className="flex w-full flex-col items-center rounded-md border border-tuao-dark-700 bg-tuao-dark-800/90 px-3 py-1.5 shadow-inner transition-all duration-75 sm:px-4 sm:py-2">
                     <div
                       className={cn(
                         'font-mono text-3xl font-black tabular-nums tracking-tighter sm:text-4xl',
@@ -537,19 +534,6 @@ export function CrashGame() {
                     >
                       {`${(gameState === 'RUNNING' ? displayMultiplier : multiplier).toFixed(2)}x`}
                     </div>
-                    {serverCashedOut && (
-                      <div className="mt-1.5 w-full border-t border-white/10 pt-1.5 text-center animate-in fade-in duration-300">
-                        <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                          Ganho
-                        </span>
-                        <span className="mt-0.5 block text-sm font-bold tabular-nums text-emerald-300 sm:text-base">
-                          R$ {formatBrlAmount(serverPayout)}
-                          {serverCashoutMultiplier > 0
-                            ? ` · ${formatMultiplierPt(serverCashoutMultiplier)}`
-                            : ''}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
