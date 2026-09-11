@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { totalCents, addChip, canAddChip, parseChipCents, undoPlacement, clearPlacements, canDeal, betsFromPlacements, dealSequence, visibleTotal, revealedHistory } from '../.cache/baccarat/betting.js';
 import { PendingRoundClient } from '../.cache/baccarat/pending.js';
 import * as pendingApi from '../.cache/baccarat/pending.js';
@@ -133,4 +134,55 @@ test('older delayed balance GET cannot overwrite a newer successful submit or re
     assert.equal(isRejectedOperationCurrent(),false);
     assert.equal(isNewOperationCurrent(),true);
   }
+});
+test('live totals, chip stacks and phase lock', async () => {
+  const { applyTotals, canInteract, chipVisualIndex, emptyTotals, isStaleRound, placementsFromServer, stackFromPlacements } = await import('../.cache/baccarat/live.js');
+  const totals = applyTotals({
+    roundId: 2,
+    player: { amount: 12.5, count: 4 },
+    banker: { amount: 8, count: 2 },
+    tie: { amount: 1, count: 1 },
+  });
+  assert.deepEqual(totals.player, { amount: 12.5, count: 4 });
+  assert.deepEqual(emptyTotals().tie, { amount: 0, count: 0 });
+  assert.equal(canInteract('BETTING', true), true);
+  assert.equal(canInteract('DEALING', true), false);
+  assert.equal(canInteract('BETTING', false), false);
+  assert.equal(isStaleRound(5, 4), true);
+  assert.equal(isStaleRound(5, 5), false);
+  assert.equal(isStaleRound(0, 1), false);
+  assert.equal(chipVisualIndex(500), 2);
+  assert.equal(chipVisualIndex(50), 0);
+  assert.equal(chipVisualIndex(700), 2);
+  const placements = placementsFromServer([
+    { placementId: 'a', side: 'player', amount: 5 },
+    { placementId: 'b', side: 'player', amount: 10 },
+    { placementId: 'c', side: 'player', amount: 1 },
+  ]);
+  assert.equal(placements[0].cents, 500);
+  const stacked = stackFromPlacements(placements, 2);
+  assert.equal(stacked.overflow, 1);
+  assert.deepEqual(stacked.visible.map((chip) => chip.cents), [1000, 100]);
+});
+
+test('cards and shoe use the official TuaoBet visual identity', async () => {
+  const card = await readFile(new URL('../src/components/games/baccarat/BaccaratCard.tsx', import.meta.url), 'utf8');
+  const table = await readFile(new URL('../src/components/games/baccarat/BaccaratTable.tsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/components/games/baccarat/baccarat.css', import.meta.url), 'utf8');
+
+  assert.match(card, /import tuaoLogo from ['"]\.\.\/\.\.\/\.\.\/assets\/tuao-logo\.png['"]/);
+  assert.match(card, /className="bc-card-back-logo"/);
+  assert.match(card, /src=\{tuaoLogo\}/);
+  assert.match(table, /role="img"\s+aria-label="Shoe de oito baralhos"/);
+  assert.match(table, /className="bc-shoe-brand"/);
+  assert.match(table, /className="bc-shoe-brand"[\s\S]*?<img src=\{tuaoLogo\}/);
+  assert.match(table, /className="bc-shoe-mouth"/);
+  assert.match(styles, /\.bc-table-top>span:last-child\s*\{[^}]*padding-right:76px/s);
+  assert.match(styles, /@media\(max-width:380px\)\s*\{[\s\S]*?\.bc-card-slot\s*\{[^}]*width:36px/s);
+  assert.match(card, /revealed \? 'is-revealed' : ''/);
+  assert.match(styles, /\.bc-card\.is-revealed .bc-card-turn\s*\{[^}]*transform:rotateY\(180deg\)/s);
+  assert.match(
+    styles,
+    /@media\(prefers-reduced-motion:reduce\)\s*\{[\s\S]*?animation:none!important;[\s\S]*?transition:none!important/s,
+  );
 });
