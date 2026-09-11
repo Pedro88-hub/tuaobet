@@ -1,22 +1,28 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 
 import { PrismaClient } from '@prisma/client';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
 import type { BaccaratOutcome } from './baccaratMath';
-import {
-  BaccaratServiceError,
-  createBaccaratService,
-  parseBaccaratInput,
-} from './baccaratService';
+
+type BaccaratServiceModule = typeof import('./baccaratService');
+
+let BaccaratServiceError: BaccaratServiceModule['BaccaratServiceError'];
+let createBaccaratService: BaccaratServiceModule['createBaccaratService'];
+let parseBaccaratInput: BaccaratServiceModule['parseBaccaratInput'];
 
 const testDatabaseUrl = process.env.BACCARAT_TEST_DATABASE_URL;
 const db = testDatabaseUrl
   ? new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } })
   : null;
+
+before(async () => {
+  if (testDatabaseUrl) process.env.DATABASE_URL = testDatabaseUrl;
+  ({ BaccaratServiceError, createBaccaratService, parseBaccaratInput } = await import('./baccaratService'));
+});
 
 const playerWin: BaccaratOutcome = {
   playerCards: [
