@@ -9,6 +9,7 @@ import minesArt from '../../assets/originals/mines.png';
 import diceArt from '../../assets/originals/dice.png';
 import plinkoArt from '../../assets/originals/plinko.png';
 import towerArt from '../../assets/originals/tower.png';
+import baccaratArt from '../../assets/originals/baccarat.svg';
 
 type GameItem = {
   name: string;
@@ -18,6 +19,7 @@ type GameItem = {
 };
 
 const games: GameItem[] = [
+  { name: 'Baccarat', path: '/baccarat', image: baccaratArt },
   { name: 'Crash', path: '/crash', image: crashArt },
   { name: 'Double', path: '/double', image: doubleArt },
   { name: 'Mines', path: '/mines', image: minesArt },

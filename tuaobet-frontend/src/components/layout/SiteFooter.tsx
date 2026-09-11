@@ -17,6 +17,7 @@ const USEFUL_LINKS = [
   { label: 'Double', to: '/double' },
   { label: 'Justiça', to: '/fairness' },
   { label: 'Plinko', to: '/plinko' },
+  { label: 'Baccarat', to: '/baccarat' },
 ] as const;
 
 const ABOUT_LINKS = [

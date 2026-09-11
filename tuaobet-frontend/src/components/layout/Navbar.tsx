@@ -128,6 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
     location.pathname.startsWith('/double') ||
     location.pathname.startsWith('/mines') ||
     location.pathname.startsWith('/plinko') ||
+    location.pathname.startsWith('/baccarat') ||
     location.pathname.startsWith('/dice') ||
     location.pathname.startsWith('/fairness');
   const isSports = location.pathname.startsWith('/sports');

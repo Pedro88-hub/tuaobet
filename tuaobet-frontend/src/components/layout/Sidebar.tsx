@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
+  Spade,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { TuaoLogoMark } from '../brand/TuaoLogoMark';
@@ -28,6 +29,7 @@ type SidebarGame = {
 };
 
 const games: SidebarGame[] = [
+  { name: 'Baccarat', icon: Spade, path: '/baccarat' },
   { name: 'Crash', icon: Rocket, path: '/crash' },
   { name: 'Double', icon: Disc, path: '/double' },
   { name: 'Mines', icon: Bomb, path: '/mines' },

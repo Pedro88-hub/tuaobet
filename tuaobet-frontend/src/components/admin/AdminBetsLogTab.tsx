@@ -73,6 +73,7 @@ export const AdminBetsLogTab: React.FC<Props> = ({ onError }) => {
           <option value="mines">mines</option>
           <option value="dice">dice</option>
           <option value="plinko">plinko</option>
+          <option value="baccarat">baccarat</option>
         </select>
         <select
           value={result}
@@ -83,6 +84,7 @@ export const AdminBetsLogTab: React.FC<Props> = ({ onError }) => {
           <option value="pending">pending</option>
           <option value="win">win</option>
           <option value="loss">loss</option>
+          <option value="push">Devolvida (push)</option>
         </select>
         <button
           type="button"
@@ -132,7 +134,7 @@ export const AdminBetsLogTab: React.FC<Props> = ({ onError }) => {
                     b.result === 'pending' && 'text-amber-300'
                   )}
                 >
-                  {b.result}
+                  {b.result === 'push' ? 'Devolvida' : b.result}
                 </td>
                 <td className="p-2 tabular-nums text-tuao-text-secondary">
                   {b.payout != null
