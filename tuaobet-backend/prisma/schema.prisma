@@ -28,6 +28,9 @@ model User {
   role      UserRole @default(USER)
   status    UserStatus @default(ACTIVE)
   createdAt DateTime @default(now())
+  lastLoginAt             DateTime?
+  previousLoginAt         DateTime?
+  currentSessionStartedAt DateTime?
   
   bets             Bet[]
   transactions     Transaction[]
@@ -127,6 +130,7 @@ model Bet {
   createdAt DateTime @default(now())
 
   @@index([result, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Transaction {
